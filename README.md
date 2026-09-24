@@ -1,15 +1,16 @@
 # kicho-bot
 
-日本語の領収書・請求書を読み、TypeSafe/Jevで顧客の科目・方針に沿って判定し、人が確認した取引を**freee取引インポートCSV**にする、Codex / Claude Code共通スキルです。
+日本語の領収書・請求書を読み、TypeSafe/Jevで顧客の科目・方針に沿った**仕訳案JSON**を作る、Codex / Claude Code共通スキルです。Windows・macOS・Linuxで利用できます。
 
-Jev公式APIとVercel AI Gatewayに対応しています。借方・貸方、判定根拠、確信度はJSONに保存します。freeeへの取り込みはユーザーが行います。
+Jev公式APIとVercel AI Gatewayに対応しています。借方・貸方、判定根拠、確信度は会計ソフトに依存しないJSONに保存します。**freeeの確認画面・取引CSVは任意の出力機能**です。現在、会計ソフト専用のCSV出力はfreeeに対応し、他社形式への変換は未実装です。
 
 ```mermaid
 flowchart LR
     A[領収書・請求書 / ZIP] --> B[Codex・Claude Codeで読取]
     B --> C[抽出JSON]
     C --> D[Jevで判定]
-    D --> E[ローカル確認画面]
+    D --> J[会計ソフト共通の仕訳案JSON]
+    J --> E[任意: freee用の確認画面]
     E --> F[人が確定した取引のCSV]
     F --> G[freeeでプレビュー・取込]
     E --> H[要確認・同期明細への科目提案]
@@ -18,6 +19,8 @@ flowchart LR
 ## 目次
 
 - [できること・対応環境](#できること対応環境)
+- [Windowsで始める](#windowsで始める)
+- [freeeを使わずに利用する](#freeeを使わずに利用する)
 - [インストール](#インストール)
 - [APIキーの設定](#apiキーの設定)
 - [動作確認](#動作確認)
@@ -35,18 +38,106 @@ flowchart LR
 | 項目 | 対応内容 |
 |---|---|
 | エージェント | Codex、Claude Code |
-| OS | WSL2 / Linuxで検証。macOSは同じ構成で利用可能ですが未検証 |
-| Windows | WSL内で実行。確認キューのファイルロックに`fcntl`を使うためWindowsネイティブは非対応 |
+| OS | WindowsネイティブとWSL2 / Linuxで検証。macOSは同じ構成で利用可能ですが未検証 |
+| Windows | PowerShellから利用可能。スキルはコピー登録のため管理者権限・開発者モード・WSLは不要 |
 | 入力 | エージェントが読める画像・PDF、これらをまとめたZIP、抽出済みJSON |
 | 判定API | Jev公式 / Vercel AI GatewayのTypeSafe互換API |
-| freee出力 | 単一明細の収入・支出、全額決済または未決済、税込・内税の取引CSV |
+| 共通出力 | 借方・貸方・金額・税カテゴリ・根拠・確信度を含む仕訳案JSON |
+| freee出力（任意） | 単一明細の収入・支出、全額決済または未決済、税込・内税の取引CSV |
 | 対象外 | 複合仕訳、税率混在の一括出力、部分決済、返金、freeeへのAPI直接登録 |
 
 画像・PDFの読取とZIPの展開はホストのエージェントが行います。Pythonスクリプトは抽出済みJSONから判定するため、単独で画像をOCRするコマンドではありません。利用するエージェントの画像・PDF読取機能とファイルアクセスが必要です。
 
 同期済みカード・銀行明細は既存明細への科目提案として扱います。同期状況や既存登録の有無はfreeeから自動取得しません。
 
+## Windowsで始める
+
+Windows 10/11のPowerShellで実行します。スキルを使うCodex / Claude Codeも同じWindows側に用意してください。以下はPythonヘルパーとスキルの導入手順です。
+
+### 1. uvとリポジトリを用意する
+
+[uv公式のWindows導入手順](https://docs.astral.sh/uv/getting-started/installation/)に従ってuvを用意します。WinGetを利用できる場合:
+
+```powershell
+winget install --id astral-sh.uv -e
+```
+
+PowerShellを開き直し、`uv --version`を確認します。Pythonはuvが必要なバージョンを用意するため、別途pipを設定する必要はありません。
+
+このページの「Code → Download ZIP」でリポジトリを取得・展開し、`README.md`があるフォルダーをPowerShellで開きます。Gitがある場合は`git clone https://github.com/Lehtien/kicho-bot.git`でも取得できます。
+
+```powershell
+Set-Location "C:\Users\your-name\Documents\kicho-bot-main"
+uv run --no-project --python 3.11 python scripts/install-skills.py
+```
+
+登録先は`%USERPROFILE%\.agents\skills\kicho-bot`と`%USERPROFILE%\.claude\skills\kicho-bot`です。Windowsではスキルをコピーします。管理者権限やリンク作成権限は不要です。片方だけなら`--target codex`または`--target claude`を追加します。
+
+### 2. APIキーを設定する
+
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+notepad .env
+```
+
+[APIキーの設定](#apiキーの設定)に従って接続先とキーを入力します。キーをチャットへ貼り付ける必要はありません。
+
+### 3. APIを使わず動作確認する
+
+```powershell
+New-Item -ItemType Directory -Force work/demo | Out-Null
+uv run --frozen --script kicho-bot/scripts/classify_journal.py kicho-bot/assets/sample-extracted.json --provider vercel --dry-run --out work/demo/request.json
+```
+
+実APIでサンプルを分類する場合は次を実行します。
+
+```powershell
+uv run --env-file .env --frozen --script kicho-bot/scripts/classify_journal.py kicho-bot/assets/sample-extracted.json --out work/demo/draft.json
+```
+
+`--out`がUTF-8で直接保存するため、PowerShellのリダイレクトによる文字コードの違いを避けられます。終了コードは`$LASTEXITCODE`で確認します。エラー時は以前の出力が残ることがあるので、成功を確認してから次へ進んでください。
+
+### 4. 領収書を渡す・必要ならfreeeへ出力する
+
+新しいエージェントのセッションで、[依頼例](#エージェントへの依頼例)のパスを`C:\Users\your-name\Documents\receipts.zip`などに置き換えて依頼します。科目判定だけなら[freeeを使わずに利用する](#freeeを使わずに利用する)を参照してください。
+
+freee用の対応表と分類済みJSONを用意した後のPowerShellコマンド:
+
+```powershell
+uv run --frozen --script kicho-bot/scripts/freee_deals.py "work/client-a/drafts/*.json" --mapping work/client-a/freee-mapping.json --out work/client-a/review-queue.json
+uv run --frozen --script kicho-bot/scripts/review_freee.py work/client-a/review-queue.json
+```
+
+`*.json`はPython側でも展開するため、引用符を付けたまま使えます。起動時のURLをブラウザーで開き、[確認画面の手順](#確認画面とcsvの取り込み)へ進みます。
+
+### 更新する
+
+新しいリポジトリを取得した後、同じインストールコマンドを再実行します。登録先が前回のコピーから変更されていなければ更新します。登録先を手で編集した場合や別のスキルがある場合は、保護のため停止します。変更を元のリポジトリへ反映・退避してから登録を整理してください。
+
+## freeeを使わずに利用する
+
+抽出・Jevでの科目判定・仕訳案JSONの保存には、freeeアカウントやfreee対応表は不要です。
+
+```text
+$kicho-bot
+この領収書ZIPを読み、顧客の科目表と計上方針に沿って仕訳案JSONを作ってください。
+出力先: C:\Users\your-name\Documents\kicho-bot\work\client-a
+会計ソフト用の変換は不要です。借方・貸方・金額・判定根拠と要確認事項を示してください。
+```
+
+Claude Codeでは先頭を`/kicho-bot`にします。抽出済みJSONがあれば、`classify_journal.py ... --out draft.json`だけで完了します。
+
+| 機能 | 会計ソフトとの関係 |
+|---|---|
+| 証憑の抽出、科目表・顧客方針、Jev分類、仕訳案JSON | 共通機能 |
+| `freee_deals.py`、`review_freee.py`、freee対応表・取引CSV | 任意のfreee向け機能 |
+| 弥生・マネーフォワードなどへの直接インポート | 各製品の形式へ変換する機能は未実装 |
+
+仕訳案JSONは各会計ソフトがそのまま取り込める共通規格ではありません。税カテゴリや口座を各製品の設定へ対応させる変換が必要です。決済済み・未払いなどの事実は分類にも使います。現行の入力形式では、その情報を`freee_context.settlement_status`へ記録します（未指定は不明）。
+
 ## インストール
+
+Windowsは上の[Windowsで始める](#windowsで始める)を参照してください。以下の複数行コマンドはmacOS / Linux / WSLのbash向けです。
 
 ### 1. 必要なものを用意する
 
@@ -101,7 +192,7 @@ uv run --no-project python scripts/install-skills.py --target claude
 | Codex: `~/.agents/skills/kicho-bot` | このリポジトリの`kicho-bot/` |
 | Claude Code: `~/.claude/skills/kicho-bot` | 同じ`kicho-bot/` |
 
-既存の別スキルやリンクは上書きしません。同じ場所への登録は何度実行しても構いません。リポジトリを移動・削除するとリンクが切れるため、保存先を決めてから登録してください。
+macOS / Linux / WSLではシンボリックリンク、Windowsではコピーを作成します。`--mode copy`でコピー方式を明示できます。既存の別スキルや編集済みコピーは上書きしません。同じ場所への登録は何度実行しても構いません。リンク方式ではリポジトリを移動・削除するとリンクが切れるため、保存先を決めてから登録してください。
 
 特定の既存プロジェクトだけで使う場合は、ユーザー全体への登録の代わりに次を使います。
 
@@ -109,7 +200,7 @@ uv run --no-project python scripts/install-skills.py --target claude
 uv run --no-project python scripts/install-skills.py --project /absolute/path/to/project
 ```
 
-プロジェクト内の`.agents/skills/`と`.claude/skills/`に登録されます。リンクにはこの端末の絶対パスを使うため、共有リポジトリへそのままコミットせず、各端末で登録してください。`--target`との併用も可能です。
+プロジェクト内の`.agents/skills/`と`.claude/skills/`に登録されます。リンク方式にはこの端末の絶対パスを使います。共有リポジトリへそのままコミットせず、各端末で登録してください。`--target`との併用も可能です。
 
 ### 4. 新しいセッションで呼び出す
 
@@ -125,7 +216,7 @@ Claude Code:
 /kicho-bot 領収書を分類して、freee用の確認キューを作ってください。
 ```
 
-スキル一覧に出ない場合は新しいセッションを開始してください。登録したWSL/Linux/macOS側のエージェントで使います。
+スキル一覧に出ない場合は新しいセッションを開始してください。登録したWindows / WSL / Linux / macOS側のエージェントで使います。
 
 ## APIキーの設定
 
@@ -180,10 +271,10 @@ uv run --frozen --script kicho-bot/scripts/classify_journal.py \
 ```bash
 mkdir -p work/demo
 uv run --env-file .env --frozen --script kicho-bot/scripts/classify_journal.py \
-  kicho-bot/assets/sample-extracted.json > work/demo/draft.json
+  kicho-bot/assets/sample-extracted.json --out work/demo/draft.json
 ```
 
-`draft.json`に`journal`、`route`、`answers`などが出れば分類は成功です。終了コードが非ゼロなら、エラーを解消してから先へ進んでください。リダイレクト先のファイルが存在するだけでは成功ではありません。
+`draft.json`に`journal`、`route`、`answers`などが出れば分類は成功です。終了コードが非ゼロなら、エラーを解消してから先へ進んでください。出力先のファイルが存在するだけでは成功ではありません。失敗時は以前の出力を保持します。
 サンプルの同期・決済状況は未確認です。このままfreeeに取り込むためのデータではありません。
 
 ## 領収書・ZIPを渡して使う
@@ -285,7 +376,7 @@ freeeの対象事業所にある実際の名称・設定と照合し、編集し
 ```bash
 uv run --env-file .env --frozen --script kicho-bot/scripts/classify_journal.py \
   work/client-a/extracted/receipt-001.json \
-  > work/client-a/drafts/receipt-001.json
+  --out work/client-a/drafts/receipt-001.json
 ```
 
 接続先を明示する場合は`--provider vercel`または`--provider typesafe`を追加します。顧客専用の科目表は`--chart /absolute/path/to/chart.json`で指定できます。
@@ -295,7 +386,7 @@ uv run --env-file .env --frozen --script kicho-bot/scripts/classify_journal.py \
 
 ```bash
 uv run --frozen --script kicho-bot/scripts/freee_deals.py \
-  work/client-a/drafts/*.json \
+  "work/client-a/drafts/*.json" \
   --mapping work/client-a/freee-mapping.json \
   --out work/client-a/review-queue.json
 ```
@@ -359,6 +450,8 @@ uv run --env-file .env --frozen --script tests/run-receipt-evaluation.py \
 |---|---|
 | スキルが出てこない | 登録先とリンク先、新しいセッション、エージェントを起動したOSを確認 |
 | 既存の登録がありインストールできない | 既存スキルの内容を確認。必要なものを退避し、対象リンクを整理してから再実行 |
+| Windowsでリンク権限エラー | `--mode symlink`を外してコピー方式で登録 |
+| JSONが読めない・文字化けする | `--out`でUTF-8保存。UTF-16のJSONはUTF-8で保存し直す（UTF-8 BOMは入力可能） |
 | キーがないと言われる | `--env-file`の指定、`.env`のパス、選択した接続先とキー変数の組み合わせを確認 |
 | 401 / 403 | キーの有効性と接続先の利用権限を確認 |
 | 429 / 503 | 利用上限やサービス状況を確認し、失敗した件だけ時間を置いて再実行 |
@@ -376,9 +469,11 @@ Gitで取得した場合はリポジトリ直下で更新します。
 git pull --ff-only
 ```
 
-同じ保存先ならスキルの再登録は不要です。`.env`や`work/`はそのまま使えます。更新時に入力形式が変わった場合は、新しい仕様に合わせて再判定してください。
+リンク方式では同じ保存先なら再登録は不要です。Windowsなどのコピー方式では`uv run --no-project python scripts/install-skills.py`を再実行して更新してください。`.env`や`work/`はそのまま使えます。更新時に入力形式が変わった場合は、新しい仕様に合わせて再判定してください。
 
-登録を削除する場合は、次のパスがこのリポジトリを指すシンボリックリンクであることを確認し、リンクだけを削除します。実体のスキル・証憑・キューは残ります。
+Windowsのコピー登録を削除する場合は、エクスプローラーで登録先の`kicho-bot`フォルダーを確認し、そのフォルダーだけ削除します。証憑を保存した`work/`とは別です。
+
+リンク方式の登録を削除する場合は、次のパスがこのリポジトリを指すシンボリックリンクであることを確認し、リンクだけを削除します。実体のスキル・証憑・キューは残ります。
 
 ```bash
 ls -ld ~/.agents/skills/kicho-bot ~/.claude/skills/kicho-bot
@@ -401,7 +496,7 @@ APIを呼ばないローカルテスト:
 uv run --with 'pydantic>=2.12,<3' python -m unittest discover -s tests -v
 ```
 
-分類条件、入力・応答の検証、取引CSVへの変換、同期・顧客混在・未確認データの除外、確認画面の認証・確定・CSV出力を検証します。
+Windowsネイティブ（PowerShell / Python 3.11）とWSLで25件のテストが成功しています。分類条件、入力・応答の検証、取引CSVへの変換、同期・顧客混在・未確認データの除外、確認画面の認証・確定・CSV出力に加え、コピー登録・更新時の編集保護、日本語パス、UTF-8保存、プロセス間ロックを検証します。画像読取からの実務運用や各エージェントのWindows環境全体を保証する試験ではありません。
 
 ```text
 .

@@ -28,7 +28,7 @@ from schemas import Chart, ExtractedDocument, validate_response
 
 
 def document() -> dict:
-    source = json.loads((SKILL / "assets/sample-extracted.json").read_text())
+    source = json.loads((SKILL / "assets/sample-extracted.json").read_text(encoding="utf-8"))
     source["client"]["client_id"] = "test-client"
     source["extracted"]["payment_method"] = "cash"
     source["freee_context"] = {"source_status": "receipt_only", "settlement_status": "paid",
@@ -37,7 +37,7 @@ def document() -> dict:
 
 
 def chart() -> dict:
-    return Chart.model_validate(json.loads(classifier.CHART_PATH.read_text())).model_dump()
+    return Chart.model_validate(json.loads(classifier.CHART_PATH.read_text(encoding="utf-8"))).model_dump()
 
 
 def response(payload: dict, debit: str = "supplies", credit: str = "cash") -> dict:
@@ -72,7 +72,7 @@ def draft(source: dict | None = None, debit: str = "supplies", credit: str = "ca
 
 
 def mapping() -> Mapping:
-    value = json.loads((SKILL / "assets/freee-mapping.example.json").read_text())
+    value = json.loads((SKILL / "assets/freee-mapping.example.json").read_text(encoding="utf-8"))
     value.update(client_id="test-client", verified=True)
     return Mapping.model_validate(value)
 
@@ -137,7 +137,7 @@ class ClassificationTests(unittest.TestCase):
         for provider in classifier.PROVIDERS:
             result = subprocess.run([sys.executable, str(SKILL / "scripts/classify_journal.py"),
                                      str(SKILL / "assets/sample-extracted.json"), "--provider", provider, "--dry-run"],
-                                    cwd="/tmp", capture_output=True, text=True, check=True)
+                                    cwd=tempfile.gettempdir(), capture_output=True, text=True, encoding="utf-8", check=True)
             value = json.loads(result.stdout)
             self.assertEqual(value["provider"], provider)
             self.assertEqual(value["endpoint"], classifier.PROVIDERS[provider][0])
@@ -260,7 +260,8 @@ class FreeeTests(unittest.TestCase):
             save_queue(path, value)
             reloaded = load_queue(path)
             self.assertEqual(reloaded, value)
-            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            if os.name != "nt":
+                self.assertEqual(path.stat().st_mode & 0o777, 0o600)
 
 
 class ReviewServerTests(unittest.TestCase):

@@ -16,6 +16,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from freee_deals import confirm, create_export, load_queue, queue_rows, save_queue
+from cli_io import configure_stdio
 from queue_store import queue_lock
 from schemas import StrictModel, Text
 
@@ -152,4 +153,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    configure_stdio()
     raise SystemExit(main())

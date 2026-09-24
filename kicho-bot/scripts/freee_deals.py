@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import glob
 import hashlib
 import io
 import json
@@ -19,6 +20,7 @@ from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, model_validator
+from cli_io import configure_stdio
 
 from classify_journal import build_payload, draft_id, format_entry, route
 from schemas import Chart, ExtractedDocument, JsonValue, StrictModel, Text, validate_response
@@ -258,7 +260,7 @@ def create_export(queue: Queue) -> ExportBatch:
 
 
 def save_queue(path: Path, queue: Queue) -> None:
-    """Atomic, private queue writes. Callers serialize access with queue_lock."""
+    """Atomic writes (0600 on POSIX, directory ACL on Windows), under queue_lock."""
     descriptor, temporary = tempfile.mkstemp(prefix=".kicho-", dir=path.parent)
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as output:
@@ -275,16 +277,26 @@ def load_queue(path: Path) -> Queue:
     return Queue.model_validate(json.loads(path.read_text(encoding="utf-8")))
 
 
+def expand_drafts(patterns: list[str]) -> list[Path]:
+    paths = []
+    for pattern in patterns:
+        matches = [Path(pattern)] if Path(pattern).is_file() else [Path(p) for p in sorted(glob.glob(pattern))]
+        if not matches or any(not path.is_file() for path in matches):
+            raise ValueError("No draft files match the input")
+        paths.extend(path.resolve() for path in matches)
+    return list(dict.fromkeys(paths))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Prepare a freee review queue from Jev drafts")
-    parser.add_argument("drafts", nargs="+", type=Path)
+    parser.add_argument("drafts", nargs="+", help="Draft JSON paths or quoted glob patterns")
     parser.add_argument("--mapping", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
     args = parser.parse_args()
     from queue_store import queue_lock
     try:
-        mapping = Mapping.model_validate(json.loads(args.mapping.read_text(encoding="utf-8")))
-        drafts = [Draft.model_validate(json.loads(path.read_text(encoding="utf-8"))) for path in args.drafts]
+        mapping = Mapping.model_validate(json.loads(args.mapping.read_text(encoding="utf-8-sig")))
+        drafts = [Draft.model_validate(json.loads(path.read_text(encoding="utf-8-sig"))) for path in expand_drafts(args.drafts)]
         if any(draft.extracted_document.client.client_id != mapping.client_id for draft in drafts):
             raise ValueError("client mismatch")
         with queue_lock(args.out):
@@ -307,4 +319,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    configure_stdio()
     raise SystemExit(main())

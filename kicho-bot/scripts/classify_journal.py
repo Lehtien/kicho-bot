@@ -17,6 +17,7 @@ import urllib.request
 from pathlib import Path
 
 from pydantic import ValidationError
+from cli_io import configure_stdio, write_json
 from schemas import Chart, ExtractedDocument, validate_response
 
 PROVIDERS = {
@@ -28,7 +29,7 @@ CHART_PATH = ROOT / "assets" / "chart-of-accounts.ja.json"
 
 
 def load_json(path: Path) -> dict:
-    with path.open(encoding="utf-8") as fh:
+    with path.open(encoding="utf-8-sig") as fh:
         return json.load(fh)
 
 
@@ -216,6 +217,7 @@ def main() -> int:
     parser.add_argument("extracted_json")
     parser.add_argument("--chart", default=str(CHART_PATH))
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--out", type=Path, help="Write UTF-8 JSON directly, without shell redirection")
     parser.add_argument("--provider", choices=tuple(PROVIDERS), default=os.environ.get("KICHO_PROVIDER"))
     parser.add_argument("--model", help="Override the selected provider's model")
     args = parser.parse_args()
@@ -244,8 +246,7 @@ def main() -> int:
     payload = build_payload(extracted_doc, chart, model)
 
     if args.dry_run:
-        print(json.dumps({"mode": "dry-run", "provider": provider, "endpoint": endpoint, "payload": payload}, ensure_ascii=False, indent=2))
-        return 0
+        return write_json({"mode": "dry-run", "provider": provider, "endpoint": endpoint, "payload": payload}, args.out)
 
     api_key = os.environ.get(key_name)
     if not api_key:
@@ -275,9 +276,9 @@ def main() -> int:
         "answers": answers,
         "usage": result["usage"],
     }
-    print(json.dumps(output, ensure_ascii=False, indent=2))
-    return 0
+    return write_json(output, args.out)
 
 
 if __name__ == "__main__":
+    configure_stdio()
     raise SystemExit(main())

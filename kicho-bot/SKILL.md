@@ -1,9 +1,9 @@
 ---
 name: kicho-bot
-description: 日本語の証憑からデータを抽出し、TypeSafe/Jevで勘定科目を判定して確認キューとfreee取引CSVを作る。記帳、仕訳、領収書分類、確認済みのfreee出力、kicho-botの依頼に使う。Codex・Claude Code、Jev公式・Vercel AI Gatewayに対応。
+description: 日本語の証憑からデータを抽出し、TypeSafe/Jevで会計ソフト共通の仕訳案JSONを作る。freee向けの確認キュー・取引CSVも任意で作成できる。記帳、仕訳、領収書分類、確認済みのfreee出力、kicho-botの依頼に使う。Codex・Claude Code、Jev公式・Vercel AI Gatewayに対応。
 metadata:
   type: workflow
-  version: "1.1"
+  version: "1.2"
   stack: codex-or-claude-extract + jev-decide
 ---
 
@@ -13,7 +13,8 @@ CodexまたはClaude Codeが証憑を読み、Jevが科目を選び、Pythonが�
 
 ## 実行環境と接続先
 
-Python 3.11以上とuvを使う。依存ライブラリはスクリプトに宣言済み。
+Windows / macOS / LinuxでPython 3.11以上とuvを使う。依存ライブラリはスクリプトに宣言済み。
+Windowsでは登録済みスキルの実際のパスを使い、PowerShellにはbashの環境変数や行継続記法を渡さない。
 このSKILL.mdがあるディレクトリの絶対パスを `KICHO_SKILL_DIR` に設定する。
 現在の作業ディレクトリや固定のインストール先に依存しない。
 
@@ -33,7 +34,7 @@ Python 3.11以上とuvを使う。依存ライブラリはスクリプトに宣�
 
 1. 領収書、請求書、OCRテキストを[抽出スキーマ](references/extract-schema.md)と[抽出指示](assets/extract-prompt.md)に従いJSONへ変換する。画像・PDFはホストの読取手段を使う。読めない値を推測しない。Jevにはテキストと構造化データだけを渡す。
 2. 入力JSONは作業フォルダーに保存する。証憑・会社設定・結果を共有スキル内に保存しない。同梱サンプルは動作確認専用で、実際の証憑に代用しない。
-3. 顧客の科目表があれば `--chart /absolute/path/chart.json` を指定する。なければ同梱の個人事業向け科目表を出発点として使い、その旨を伝える。顧客方針は入力の `client`、過去の処理は `history_hints` に入れる。
+3. 分類・仕訳案JSONだけの依頼にはfreeeのアカウントや対応表を要求しない。顧客の科目表があれば `--chart /absolute/path/chart.json` を指定する。なければ同梱の個人事業向け科目表を出発点として使い、その旨を伝える。顧客方針は入力の `client`、過去の処理は `history_hints` に入れる。
 4. ユーザーの依頼に含まれるJev分類を実行する。接続先指定があれば従う。キーがない場合は抽出まで進め、不足を伝える。Jevの回答や確信度を捏造しない。
 
    ```bash
@@ -41,12 +42,12 @@ Python 3.11以上とuvを使う。依存ライブラリはスクリプトに宣�
    uv run --script "$KICHO_SKILL_DIR/scripts/classify_journal.py" /absolute/path/extracted.json --provider typesafe
    ```
 
-   上記から選んだ接続先のコマンドを1つ実行する。送信せず検証する場合は `--dry-run` を付ける。
+   上記はbashの例。選んだ接続先のコマンドを1つ実行する。JSONの保存には `--out /absolute/path/draft.json` を使い、PowerShellの文字コードに依存するリダイレクトを避ける。終了コードが非ゼロなら以前の出力を成功結果として扱わない。送信せず検証する場合は `--dry-run` を付ける。
 
 5. [質問定義](references/jev-questions.md)の6問を1回のリクエストにまとめる。金額・算術・摘要をJevに生成させない。通信失敗や不正な応答で分類結果を補完しない。
 6. [振り分け規則](references/routing.md)とスクリプトの `route` に従う。確信度は精度保証ではない。顧客の実データで閾値を評価する。
 7. 仕訳案JSON、借方／貸方／金額を含む人間向けの仕訳、摘要、要確認事項を返す。`review` なら借方候補の上位3件と判断を進めるための質問を示す。
-8. freee向けの出力では[freee取引への変換と確認](references/freee-export.md)を読む。顧客別マッピングで取引案へ写し、ローカル確認画面を開く手順を案内する。CSVは人が確定した`candidate_auto`だけに限定する。同期済み明細は新規登録せず科目提案として表示する。
+8. ユーザーがfreee向けの出力を依頼した場合だけ、[freee取引への変換と確認](references/freee-export.md)を読む。顧客別マッピングで取引案へ写し、ローカル確認画面を開く手順を案内する。現在の会計ソフト専用CSVはfreee形式。他社へ取り込めると説明しない。CSVは人が確定した`candidate_auto`だけに限定する。同期済み明細は新規登録せず科目提案として表示する。
 
 ## 制約
 

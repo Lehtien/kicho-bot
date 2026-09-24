@@ -19,6 +19,7 @@ SKILL = ROOT / "kicho-bot"
 FIXTURES = ROOT / "tests/fixtures/receipts"
 sys.path.insert(0, str(SKILL / "scripts"))
 from freee_deals import Draft
+from cli_io import configure_stdio
 
 
 def main() -> int:
@@ -41,7 +42,7 @@ def main() -> int:
             command += ["--provider", args.provider]
         row = {"id": case["id"], "title": case["title"], "expected": case["expected"]}
         try:
-            process = subprocess.run(command, capture_output=True, text=True, timeout=45)
+            process = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", timeout=45)
             if process.returncode:
                 # No raw stderr: upstream errors may contain credentials or input data.
                 http_error = re.search(r"Jevへの接続に失敗しました（HTTP (\d{3})）", process.stderr)
@@ -91,4 +92,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    configure_stdio()
     raise SystemExit(main())
