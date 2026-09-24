@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+.env.*
+!.env.example
+/work/
+/extracted*.json
+/draft*.json
+/review-queue*.json
+/review-queue*.json.lock
+/client-freee*.json
+*.csv
+*.zip
+/tests/results/
+/dist/
+.DS_Store

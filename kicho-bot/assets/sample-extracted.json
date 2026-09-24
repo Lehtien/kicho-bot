@@ -1,0 +1,42 @@
+{
+  "extracted": {
+    "source_type": "receipt",
+    "transaction_type": "expense",
+    "vendor": "Amazon.co.jp",
+    "date": "2026-09-18",
+    "currency": "JPY",
+    "amount_incl_tax": 2178,
+    "amount_excl_tax": 1980,
+    "tax_amount": 198,
+    "tax_rate_hint": "0.10",
+    "invoice_number": "JP-4419-8831",
+    "qualified_invoice": "yes",
+    "payment_method": "credit_card",
+    "items": [
+      {"name": "中性紙ノート A5 5冊", "amount_incl_tax": 2178, "qty": 1}
+    ],
+    "raw_text": "Amazon.co.jp 中性紙ノート A5 2,178円 内消費税198円",
+    "needs_ocr_review": false,
+    "extraction_notes": []
+  },
+  "client": {
+    "client_id": "example-sole-proprietor",
+    "business_type": "sole_proprietor",
+    "industry": "consulting",
+    "account_policy": "Amazonの事務用品は消耗品費。転売目的の仕入だけ仕入高。個人の買い物は事業主貸。",
+    "frequent_vendors": {
+      "Amazon.co.jp": "supplies",
+      "JR東日本": "travel",
+      "NTTドコモ": "comm"
+    }
+  },
+  "freee_context": {
+    "source_status": "unknown",
+    "settlement_status": "unknown",
+    "wallet_key": "business-card",
+    "payment_date": null,
+    "due_date": null,
+    "statement_id": null,
+    "item": ""
+  }
+}

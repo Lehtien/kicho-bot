@@ -1,0 +1,47 @@
+{
+  "extracted": {
+    "source_type": "receipt",
+    "transaction_type": "expense",
+    "vendor": "こもれび文具店（架空）",
+    "date": "2026-09-10",
+    "currency": "JPY",
+    "amount_incl_tax": 6600,
+    "amount_excl_tax": 6000,
+    "tax_amount": 600,
+    "tax_rate_hint": "0.10",
+    "invoice_number": "TEST-11-resale",
+    "qualified_invoice": "yes",
+    "payment_method": "credit_card",
+    "items": [
+      {
+        "name": "販売用A5ノート まとめ仕入20冊",
+        "amount_incl_tax": 6600,
+        "qty": 1
+      }
+    ],
+    "needs_ocr_review": false,
+    "extraction_notes": [
+      "社内消費ではなく、自社ネットショップで販売する商品。"
+    ],
+    "raw_text": "【架空データ・テスト専用／実在する取引ではありません】\nこもれび文具店（架空）\n領収書\n番号 TEST-11-resale\n日付 2026-09-10\n宛名 架空スタジオ こはる\n--------------------------------\n販売用A5ノート まとめ仕入20冊　6,600円\n--------------------------------\n合計 6,600円\n税抜 6,000円\n消費税 600円\nお支払い 事業用カード\n利用者メモ: 社内消費ではなく、自社ネットショップで販売する商品。"
+  },
+  "client": {
+    "client_id": "synthetic-demo-only",
+    "business_type": "sole_proprietor",
+    "industry": "Web制作・事務用品の小規模販売（架空事業）",
+    "account_policy": "以下はテスト用の架空事業の社内ルール。事務用品は消耗品費、販売目的の商品は仕入高。同じ購入先でも用途で区別する。電車・タクシーは旅費交通費、携帯回線は通信費、電気は水道光熱費、事業用書籍は新聞図書費、広告出稿は広告宣伝費、Web実装の業務委託は外注費、事務所家賃は地代家賃、振込手数料は支払手数料。カード払いの支出は未払金_カード、現金払いは現金、口座払いは普通預金。支払前の業務委託請求書は未払金。現金で受領した制作売上は借方現金・貸方売上高。事業カードでの私用購入は事業主貸・対象外とし、人が確認する。飲食は相手と業務目的を確認してから処理する。情報不足なら人が確認する。10万円以上の機器購入は、この社内ルールでは必ず用途・資産処理を人が確認する。金額や日付が読めない、税率混在、印字金額の計算不一致、内容が不明な証憑も人が確認する。",
+    "frequent_vendors": {
+      "こもれび文具店（架空）": "supplies",
+      "青空モバイル（架空）": "comm"
+    }
+  },
+  "freee_context": {
+    "source_status": "synced_statement",
+    "statement_id": "SYNTHETIC-STMT-11-resale",
+    "settlement_status": "paid",
+    "wallet_key": "demo-card",
+    "payment_date": "2026-09-10",
+    "due_date": null,
+    "item": ""
+  }
+}

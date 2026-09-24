@@ -1,0 +1,33 @@
+{
+  "client_id": "example-sole-proprietor",
+  "verified": false,
+  "expense_accounts": {
+    "purchases": "仕入高",
+    "supplies": "消耗品費",
+    "travel": "旅費交通費",
+    "comm": "通信費",
+    "advertising": "広告宣伝費",
+    "entertainment": "接待交際費",
+    "utilities": "水道光熱費",
+    "rent": "地代家賃",
+    "fees": "支払手数料",
+    "outsourcing": "外注費",
+    "professional": "支払報酬料",
+    "software": "新聞図書費",
+    "tools": "工具器具備品",
+    "tax_dues": "租税公課",
+    "misc": "雑費"
+  },
+  "income_accounts": {"sales": "売上高"},
+  "wallets": {
+    "cash": {"name": "現金", "journal_account_ids": ["cash"], "sync_status": "not_synced"},
+    "business-card": {"name": null, "journal_account_ids": ["card_payable"], "sync_status": "unknown"},
+    "business-bank": {"name": null, "journal_account_ids": ["ordinary_deposit"], "sync_status": "unknown"}
+  },
+  "unpaid_accounts": {"expense": ["accounts_payable", "accrued"], "income": ["accounts_receivable"]},
+  "tax_rules": [
+    {"direction": "expense", "category": "taxable_10", "qualified_invoice": "yes", "name": "課対仕入10%", "valid_from": "2026-01-01", "valid_to": "2026-12-31"},
+    {"direction": "income", "category": "taxable_10", "qualified_invoice": "yes", "name": "課税売上10%", "valid_from": "2026-01-01", "valid_to": "2026-12-31"}
+  ],
+  "partner_names": {}
+}

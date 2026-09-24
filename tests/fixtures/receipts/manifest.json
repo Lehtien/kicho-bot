@@ -1,0 +1,415 @@
+{
+  "synthetic": true,
+  "description": "全件架空。実データの精度評価ではなく、社内ルールに対する動作確認用。",
+  "cases": [
+    {
+      "id": "01-stationery",
+      "title": "事務用ノートとペン",
+      "input": "inputs/01-stationery.json",
+      "scenario": "社内で使う事務用品。現金払い。",
+      "expected": {
+        "debit": [
+          "supplies"
+        ],
+        "credit": [
+          "cash"
+        ],
+        "tax": [
+          "taxable_10"
+        ],
+        "route": [
+          "candidate_auto"
+        ]
+      }
+    },
+    {
+      "id": "02-train",
+      "title": "客先訪問の電車代",
+      "input": "inputs/02-train.json",
+      "scenario": "制作案件の打ち合わせで客先へ移動。",
+      "expected": {
+        "debit": [
+          "travel"
+        ],
+        "credit": [
+          "cash"
+        ],
+        "tax": [
+          "taxable_10"
+        ],
+        "route": [
+          "candidate_auto"
+        ]
+      }
+    },
+    {
+      "id": "03-taxi-synced",
+      "title": "同期済みカードのタクシー",
+      "input": "inputs/03-taxi-synced.json",
+      "scenario": "客先訪問。カード明細はfreeeに同期済み。",
+      "expected": {
+        "debit": [
+          "travel"
+        ],
+        "credit": [
+          "card_payable"
+        ],
+        "tax": [
+          "taxable_10"
+        ],
+        "route": [
+          "candidate_auto"
+        ]
+      }
+    },
+    {
+      "id": "04-mobile",
+      "title": "業務専用の携帯回線",
+      "input": "inputs/04-mobile.json",
+      "scenario": "業務専用の携帯回線",
+      "expected": {
+        "debit": [
+          "comm"
+        ],
+        "credit": [
+          "ordinary_deposit"
+        ],
+        "tax": [
+          "taxable_10"
+        ],
+        "route": [
+          "candidate_auto"
+        ]
+      }
+    },
+    {
+      "id": "05-electricity",
+      "title": "事務所の電気料金",
+      "input": "inputs/05-electricity.json",
+      "scenario": "住居とは別の事務所専用メーター。",
+      "expected": {
+        "debit": [
+          "utilities"
+        ],
+        "credit": [
+          "ordinary_deposit"
+        ],
+        "tax": [
+          "taxable_10"
+        ],
+        "route": [
+          "candidate_auto"
+        ]
+      }
+    },
+    {
+      "id": "06-book",
+      "title": "業務用の技術書",
+      "input": "inputs/06-book.json",
+      "scenario": "受託制作の調査に使う書籍。",
+      "expected": {
+        "debit": [
+          "software"
+        ],
+        "credit": [
+          "cash"
+        ],
+        "tax": [
+          "taxable_10"
+        ],
+        "route": [
+          "candidate_auto"
+        ]
+      }
+    },
+    {
+      "id": "07-advertising",
+      "title": "集客用の広告出稿",
+      "input": "inputs/07-advertising.json",
+      "scenario": "集客用の広告出稿",
+      "expected": {
+        "debit": [
+          "advertising"
+        ],
+        "credit": [
+          "card_payable"
+        ],
+        "tax": [
+          "taxable_10"
+        ],
+        "route": [
+          "candidate_auto"
+        ]
+      }
+    },
+    {
+      "id": "08-outsourcing-unpaid",
+      "title": "未払いの外注請求書",
+      "input": "inputs/08-outsourcing-unpaid.json",
+      "scenario": "納品検収済み。9月30日に支払予定、まだ振り込んでいない。",
+      "expected": {
+        "debit": [
+          "outsourcing"
+        ],
+        "credit": [
+          "accrued"
+        ],
+        "tax": [
+          "taxable_10"
+        ],
+        "route": [
+          "candidate_auto"
+        ]
+      }
+    },
+    {
+      "id": "09-office-rent",
+      "title": "専用事務所の家賃",
+      "input": "inputs/09-office-rent.json",
+      "scenario": "住宅ではなく事務所専用。",
+      "expected": {
+        "debit": [
+          "rent"
+        ],
+        "credit": [
+          "ordinary_deposit"
+        ],
+        "tax": [
+          "taxable_10"
+        ],
+        "route": [
+          "candidate_auto"
+        ]
+      }
+    },
+    {
+      "id": "10-bank-fee",
+      "title": "振込手数料",
+      "input": "inputs/10-bank-fee.json",
+      "scenario": "振込手数料",
+      "expected": {
+        "debit": [
+          "fees"
+        ],
+        "credit": [
+          "ordinary_deposit"
+        ],
+        "tax": [
+          "taxable_10"
+        ],
+        "route": [
+          "candidate_auto"
+        ]
+      }
+    },
+    {
+      "id": "11-resale",
+      "title": "いつもの文具店だが販売用仕入",
+      "input": "inputs/11-resale.json",
+      "scenario": "社内消費ではなく、自社ネットショップで販売する商品。",
+      "expected": {
+        "debit": [
+          "purchases"
+        ],
+        "credit": [
+          "card_payable"
+        ],
+        "tax": [
+          "taxable_10"
+        ],
+        "route": [
+          "candidate_auto"
+        ]
+      }
+    },
+    {
+      "id": "12-personal",
+      "title": "事業カードで私用の買い物",
+      "input": "inputs/12-personal.json",
+      "scenario": "家族の自宅用。事業と無関係だが、誤って事業カードで支払った。",
+      "expected": {
+        "debit": [
+          "owner_draw",
+          "unknown_needs_review"
+        ],
+        "credit": [
+          "card_payable"
+        ],
+        "tax": [
+          "out_of_scope",
+          "mixed_or_unknown"
+        ],
+        "route": [
+          "review"
+        ]
+      }
+    },
+    {
+      "id": "13-dining-unclear",
+      "title": "飲食の相手・目的が不明",
+      "input": "inputs/13-dining-unclear.json",
+      "scenario": "同席者と業務目的を記録しておらず、仕事か私用か確認が必要。",
+      "expected": {
+        "debit": [
+          "entertainment",
+          "unknown_needs_review",
+          "owner_draw"
+        ],
+        "credit": [
+          "cash"
+        ],
+        "tax": [
+          "taxable_10"
+        ],
+        "route": [
+          "review"
+        ]
+      }
+    },
+    {
+      "id": "14-mixed-tax",
+      "title": "8%食品と10%文具が混在",
+      "input": "inputs/14-mixed-tax.json",
+      "scenario": "8%対象1,080円・税80円、10%対象220円・税20円。用途も異なるため分割確認。",
+      "expected": {
+        "debit": [
+          "supplies",
+          "entertainment",
+          "unknown_needs_review"
+        ],
+        "credit": [
+          "cash"
+        ],
+        "tax": [
+          "mixed_or_unknown"
+        ],
+        "route": [
+          "review"
+        ]
+      }
+    },
+    {
+      "id": "15-amount-unreadable",
+      "title": "感熱紙が薄く金額不明",
+      "input": "inputs/15-amount-unreadable.json",
+      "scenario": "商品名は読めるが、金額欄と税額欄が薄く判読不能。",
+      "expected": {
+        "debit": [
+          "supplies",
+          "unknown_needs_review"
+        ],
+        "credit": [
+          "cash"
+        ],
+        "tax": [
+          "taxable_10",
+          "mixed_or_unknown"
+        ],
+        "route": [
+          "review"
+        ]
+      }
+    },
+    {
+      "id": "16-date-unreadable",
+      "title": "日付が破れて読めない",
+      "input": "inputs/16-date-unreadable.json",
+      "scenario": "領収書右上が破れて日付を特定できない。",
+      "expected": {
+        "debit": [
+          "travel"
+        ],
+        "credit": [
+          "cash"
+        ],
+        "tax": [
+          "taxable_10"
+        ],
+        "route": [
+          "review"
+        ]
+      }
+    },
+    {
+      "id": "17-tax-mismatch",
+      "title": "印字金額の計算不一致",
+      "input": "inputs/17-tax-mismatch.json",
+      "scenario": "合計3,300円、税抜3,000円、税500円と読める。転記ミスか原本の印字を再確認。",
+      "expected": {
+        "debit": [
+          "supplies"
+        ],
+        "credit": [
+          "cash"
+        ],
+        "tax": [
+          "taxable_10"
+        ],
+        "route": [
+          "review"
+        ]
+      }
+    },
+    {
+      "id": "18-expensive-laptop",
+      "title": "高額パソコンの資産判断",
+      "input": "inputs/18-expensive-laptop.json",
+      "scenario": "初めて購入する機種。社内ルールに従い用途と資産処理を人が確認する。",
+      "expected": {
+        "debit": [
+          "tools",
+          "unknown_needs_review"
+        ],
+        "credit": [
+          "card_payable"
+        ],
+        "tax": [
+          "taxable_10"
+        ],
+        "route": [
+          "review"
+        ]
+      }
+    },
+    {
+      "id": "19-vague",
+      "title": "新規取引先の品目が『品代』",
+      "input": "inputs/19-vague.json",
+      "scenario": "何を購入したのか記録がなく、初めて使う店。",
+      "expected": {
+        "debit": [
+          "unknown_needs_review"
+        ],
+        "credit": [
+          "cash"
+        ],
+        "tax": [
+          "taxable_10"
+        ],
+        "route": [
+          "review"
+        ]
+      }
+    },
+    {
+      "id": "20-cash-income",
+      "title": "制作代金を現金で受領",
+      "input": "inputs/20-cash-income.json",
+      "scenario": "当事業があおい企画へ発行した領収書の控え。制作を納品し、現金22,000円を受領した。",
+      "expected": {
+        "debit": [
+          "cash"
+        ],
+        "credit": [
+          "sales"
+        ],
+        "tax": [
+          "taxable_10"
+        ],
+        "route": [
+          "candidate_auto"
+        ]
+      }
+    }
+  ]
+}

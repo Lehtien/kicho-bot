@@ -1,0 +1,36 @@
+{
+  "chart_id": "jp-sole-prop-starter-v1",
+  "note": "個人事業の出発点。顧客の科目に置き換えること。",
+  "debit_accounts": [
+    {"id": "cash", "name": "現金", "when_to_use": "現金で受け取った、または現金残高を増やす取引"},
+    {"id": "ordinary_deposit", "name": "普通預金", "when_to_use": "口座入金、口座から支払う取引の相手"},
+    {"id": "accounts_receivable", "name": "売掛金", "when_to_use": "後払いの売上債権"},
+    {"id": "purchases", "name": "仕入高", "when_to_use": "販売する商品そのものの仕入"},
+    {"id": "supplies", "name": "消耗品費", "when_to_use": "短期間で使い切る事務用品・包装・小物"},
+    {"id": "travel", "name": "旅費交通費", "when_to_use": "電車バスタクシー航空券駐車場など移動"},
+    {"id": "comm", "name": "通信費", "when_to_use": "携帯、ネット、切手、クラウド通信回線"},
+    {"id": "advertising", "name": "広告宣伝費", "when_to_use": "広告出稿、チラシ、販促物"},
+    {"id": "entertainment", "name": "接待交際費", "when_to_use": "取引先の飲食、贈答、接待"},
+    {"id": "utilities", "name": "水道光熱費", "when_to_use": "電気ガス水道"},
+    {"id": "rent", "name": "地代家賃", "when_to_use": "事務所家賃、駐車場の地代"},
+    {"id": "fees", "name": "支払手数料", "when_to_use": "振込手数料、決済手数料、士業以外の手数料"},
+    {"id": "outsourcing", "name": "外注費", "when_to_use": "業務委託、下請け"},
+    {"id": "professional", "name": "支払報酬料", "when_to_use": "税理士・弁護士・デザイナー等の報酬"},
+    {"id": "software", "name": "新聞図書費", "when_to_use": "書籍、有料記事。サブスクツールは通信費または支払手数料寄り"},
+    {"id": "tools", "name": "工具器具備品", "when_to_use": "10万円前後の器具。資産計上判断は人が行う"},
+    {"id": "tax_dues", "name": "租税公課", "when_to_use": "収入印紙、事業税、固定資産税など"},
+    {"id": "misc", "name": "雑費", "when_to_use": "他に落ちない少額。安易に使わない"},
+    {"id": "owner_draw", "name": "事業主貸", "when_to_use": "事業資金を家計に出した"},
+    {"id": "unknown_needs_review", "name": "要確認", "when_to_use": "科目を確定できない"}
+  ],
+  "credit_accounts": [
+    {"id": "cash", "name": "現金"},
+    {"id": "ordinary_deposit", "name": "普通預金"},
+    {"id": "accounts_payable", "name": "買掛金"},
+    {"id": "accrued", "name": "未払金"},
+    {"id": "card_payable", "name": "未払金_カード"},
+    {"id": "sales", "name": "売上高"},
+    {"id": "owner_invest", "name": "事業主借"},
+    {"id": "unknown_needs_review", "name": "要確認"}
+  ]
+}
