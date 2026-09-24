@@ -1,233 +1,90 @@
 # kicho-bot
 
-日本語の領収書・請求書を読み、TypeSafe/Jevで顧客の科目・方針に沿った**仕訳案JSON**を作る、Claude Desktop向けMCPサーバー／Codex・Claude Code共通スキルです。Windows・macOS・Linuxで利用できます。
+**Claude Desktopに領収書を添付して、顧客のルールに沿った仕訳案を作るMCPサーバーです。**
 
-Jev公式APIとVercel AI Gatewayに対応しています。借方・貸方、判定根拠、確信度は会計ソフトに依存しないJSONに保存します。**freeeの確認画面・取引CSVは任意の出力機能**です。現在、会計ソフト専用のCSV出力はfreeeに対応し、他社形式への変換は未実装です。
+Claudeが画像・PDFから内容を読み取り、TypeSafe/Jevが科目を判定します。仕訳案・判定結果はPCに保存され、チャットから確認できます。freeeを使う場合は、確認画面で人が確定した取引をCSVに出力できます。
+
+初回の接続設定を済ませれば、普段はClaude Desktopから依頼できます。
 
 ```mermaid
 flowchart LR
-    A[領収書・請求書 / ZIP] --> B[Codex・Claude Codeで読取]
-    B --> C[抽出JSON]
-    C --> D[Jevで判定]
-    D --> J[会計ソフト共通の仕訳案JSON]
-    J --> E[任意: freee用の確認画面]
-    E --> F[人が確定した取引のCSV]
-    F --> G[freeeでプレビュー・取込]
-    E --> H[要確認・同期明細への科目提案]
+    A[Claude Desktopに証憑を添付] --> B[内容を読み取る]
+    B --> C[kicho-bot / Jevで科目判定]
+    C --> D[仕訳案をチャットで確認・PCに保存]
+    D --> E[任意: freee用の確認画面]
+    E --> F[人が確定してCSVを取得]
 ```
-
-経理担当者がチャット中心で使う場合は、[Claude Desktop＋MCPの導入手順](docs/claude-desktop.md)から始められます。添付証憑から仕訳案を作り、必要な場合だけfreeeの確認画面へ進みます。
 
 ## 目次
 
-- [できること・対応環境](#できること対応環境)
-- [Claude Desktop＋MCPで使う](docs/claude-desktop.md)
-- [Windowsで始める](#windowsで始める)
-- [freeeを使わずに利用する](#freeeを使わずに利用する)
-- [インストール](#インストール)
-- [APIキーの設定](#apiキーの設定)
-- [動作確認](#動作確認)
-- [領収書・ZIPを渡して使う](#領収書zipを渡して使う)
-- [freeeの対応表を設定する](#freeeの対応表を設定する)
-- [コマンドで処理する](#コマンドで処理する)
-- [確認画面とCSVの取り込み](#確認画面とcsvの取り込み)
-- [架空領収書20件で試す](#架空領収書20件で試す)
+- [できること](#できること)
+- [初回設定（Windows）](#初回設定windows)
+- [普段の使い方](#普段の使い方)
+- [freeeを使う場合](#freeeを使う場合)
+- [保存場所と更新](#保存場所と更新)
 - [困ったとき](#困ったとき)
-- [更新・削除](#更新削除)
-- [開発・ファイル構成](#開発ファイル構成)
+- [その他の環境・詳しい設定](#その他の環境詳しい設定)
+- [検証と開発](#検証と開発)
 
-## できること・対応環境
+## できること
 
-| 項目 | 対応内容 |
-|---|---|
-| エージェント | Claude Desktop（MCP）、Codex、Claude Code |
-| OS | WindowsネイティブとWSL2 / Linuxで検証。macOSは同じ構成で利用可能ですが未検証 |
-| Windows | PowerShellから利用可能。スキルはコピー登録のため管理者権限・開発者モード・WSLは不要 |
-| 入力 | エージェントが読める画像・PDF、これらをまとめたZIP、抽出済みJSON |
-| 判定API | Jev公式 / Vercel AI GatewayのTypeSafe互換API |
-| 共通出力 | 借方・貸方・金額・税カテゴリ・根拠・確信度を含む仕訳案JSON |
-| freee出力（任意） | 単一明細の収入・支出、全額決済または未決済、税込・内税の取引CSV |
-| 対象外 | 複合仕訳、税率混在の一括出力、部分決済、返金、freeeへのAPI直接登録 |
+- 領収書・請求書から、顧客の科目表・計上方針に沿った仕訳案を作成
+- 不明な内容や判断の難しい取引を要確認として表示
+- 借方・貸方・金額・税カテゴリ・判定結果をJSONで保存し、顧客ごとに再取得
+- 任意でfreeeの確認キューと取引インポートCSVを作成
 
-画像・PDFの読取はホストが行います。ZIPの展開はCodex / Claude Codeのファイル操作を使います。MCP版ではZIPを先に展開して証憑を添付してください。Pythonスクリプトは抽出済みJSONから判定するため、単独で画像をOCRするコマンドではありません。利用するエージェントの画像・PDF読取機能とファイルアクセスが必要です。
+分類と仕訳案JSONはfreeeなしで使えます。会計ソフト専用のCSV出力は現在freeeに対応し、弥生・マネーフォワードなどへの変換は未実装です。
 
-同期済みカード・銀行明細は既存明細への科目提案として扱います。同期状況や既存登録の有無はfreeeから自動取得しません。
+MCPサーバーは同じPCで動きます。WindowsネイティブとWSLで自動テストを実施しています。macOSにも登録できますが、動作は未検証です。
 
-## Windowsで始める
+## 初回設定（Windows）
 
-Windows 10/11のPowerShellで実行します。スキルを使うCodex / Claude Codeも同じWindows側に用意してください。以下はPythonヘルパーとスキルの導入手順です。
+### 1. 必要なものを用意する
 
-### 1. uvとリポジトリを用意する
+- Windows側のClaude Desktop
+- [uv](https://docs.astral.sh/uv/getting-started/installation/)（Pythonの実行環境・依存関係を用意するツール）
+- Vercel AI GatewayまたはTypeSafe/JevのAPIキー
 
-[uv公式のWindows導入手順](https://docs.astral.sh/uv/getting-started/installation/)に従ってuvを用意します。WinGetを利用できる場合:
+Claude Desktopの利用環境とJevのAPI利用料金は別です。スキルの登録、WSL、管理者権限はkicho-botの登録には不要です。
+
+uvがない場合は、PowerShellで次を実行します。導入方法の詳細は[uv公式ガイド](https://docs.astral.sh/uv/getting-started/installation/)を参照してください。
 
 ```powershell
 winget install --id astral-sh.uv -e
 ```
 
-PowerShellを開き直し、`uv --version`を確認します。Pythonはuvが必要なバージョンを用意するため、別途pipを設定する必要はありません。
+PowerShellを開き直して確認します。
 
-このページの「Code → Download ZIP」でリポジトリを取得・展開し、`README.md`があるフォルダーをPowerShellで開きます。Gitがある場合は`git clone https://github.com/Lehtien/kicho-bot.git`でも取得できます。
+```powershell
+uv --version
+```
+
+Pythonはuvが必要に応じて用意するため、別途pipを設定する必要はありません。
+
+### 2. kicho-botを取得する
+
+このページの「Code → Download ZIP」、または[ZIPをダウンロード](https://github.com/Lehtien/kicho-bot/archive/refs/heads/main.zip)から取得し、保存したい場所へ展開します。
+
+PowerShellで、展開した`README.md`があるフォルダーへ移動します。パスは自分の環境に置き換えてください。
 
 ```powershell
 Set-Location "C:\Users\your-name\Documents\kicho-bot-main"
-uv run --no-project --python 3.11 python scripts/install-skills.py
 ```
 
-登録先は`%USERPROFILE%\.agents\skills\kicho-bot`と`%USERPROFILE%\.claude\skills\kicho-bot`です。Windowsではスキルをコピーします。管理者権限やリンク作成権限は不要です。片方だけなら`--target codex`または`--target claude`を追加します。
+以降のコマンドはこのフォルダーで実行します。Gitを使う場合は、次の方法でも取得できます。
 
-### 2. APIキーを設定する
+```powershell
+git clone https://github.com/Lehtien/kicho-bot.git
+Set-Location kicho-bot
+```
+
+### 3. APIキーを設定する
+
+ひな型をコピーして開きます。既存の`.env`は上書きしません。
 
 ```powershell
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 notepad .env
-```
-
-[APIキーの設定](#apiキーの設定)に従って接続先とキーを入力します。キーをチャットへ貼り付ける必要はありません。
-
-### 3. APIを使わず動作確認する
-
-```powershell
-New-Item -ItemType Directory -Force work/demo | Out-Null
-uv run --frozen --script kicho-bot/scripts/classify_journal.py kicho-bot/assets/sample-extracted.json --provider vercel --dry-run --out work/demo/request.json
-```
-
-実APIでサンプルを分類する場合は次を実行します。
-
-```powershell
-uv run --env-file .env --frozen --script kicho-bot/scripts/classify_journal.py kicho-bot/assets/sample-extracted.json --out work/demo/draft.json
-```
-
-`--out`がUTF-8で直接保存するため、PowerShellのリダイレクトによる文字コードの違いを避けられます。終了コードは`$LASTEXITCODE`で確認します。エラー時は以前の出力が残ることがあるので、成功を確認してから次へ進んでください。
-
-### 4. 領収書を渡す・必要ならfreeeへ出力する
-
-新しいエージェントのセッションで、[依頼例](#エージェントへの依頼例)のパスを`C:\Users\your-name\Documents\receipts.zip`などに置き換えて依頼します。科目判定だけなら[freeeを使わずに利用する](#freeeを使わずに利用する)を参照してください。
-
-freee用の対応表と分類済みJSONを用意した後のPowerShellコマンド:
-
-```powershell
-uv run --frozen --script kicho-bot/scripts/freee_deals.py "work/client-a/drafts/*.json" --mapping work/client-a/freee-mapping.json --out work/client-a/review-queue.json
-uv run --frozen --script kicho-bot/scripts/review_freee.py work/client-a/review-queue.json
-```
-
-`*.json`はPython側でも展開するため、引用符を付けたまま使えます。起動時のURLをブラウザーで開き、[確認画面の手順](#確認画面とcsvの取り込み)へ進みます。
-
-### 更新する
-
-新しいリポジトリを取得した後、同じインストールコマンドを再実行します。登録先が前回のコピーから変更されていなければ更新します。登録先を手で編集した場合や別のスキルがある場合は、保護のため停止します。変更を元のリポジトリへ反映・退避してから登録を整理してください。
-
-## freeeを使わずに利用する
-
-抽出・Jevでの科目判定・仕訳案JSONの保存には、freeeアカウントやfreee対応表は不要です。
-
-```text
-$kicho-bot
-この領収書ZIPを読み、顧客の科目表と計上方針に沿って仕訳案JSONを作ってください。
-出力先: C:\Users\your-name\Documents\kicho-bot\work\client-a
-会計ソフト用の変換は不要です。借方・貸方・金額・判定根拠と要確認事項を示してください。
-```
-
-Claude Codeでは先頭を`/kicho-bot`にします。抽出済みJSONがあれば、`classify_journal.py ... --out draft.json`だけで完了します。
-
-| 機能 | 会計ソフトとの関係 |
-|---|---|
-| 証憑の抽出、科目表・顧客方針、Jev分類、仕訳案JSON | 共通機能 |
-| `freee_deals.py`、`review_freee.py`、freee対応表・取引CSV | 任意のfreee向け機能 |
-| 弥生・マネーフォワードなどへの直接インポート | 各製品の形式へ変換する機能は未実装 |
-
-仕訳案JSONは各会計ソフトがそのまま取り込める共通規格ではありません。税カテゴリや口座を各製品の設定へ対応させる変換が必要です。決済済み・未払いなどの事実は分類にも使います。現行の入力形式では、その情報を`freee_context.settlement_status`へ記録します（未指定は不明）。
-
-## インストール
-
-Windowsは上の[Windowsで始める](#windowsで始める)を参照してください。以下の複数行コマンドはmacOS / Linux / WSLのbash向けです。
-
-### 1. 必要なものを用意する
-
-- Git、Python 3.11以上、[uv](https://docs.astral.sh/uv/getting-started/installation/)
-- CodexまたはClaude Codeの利用環境
-- Vercel AI GatewayまたはTypeSafe/JevのAPIキー（エージェントの契約とは別）
-- CSVを取り込む場合はfreee会計の利用環境と、対象事業所の科目・口座・税区分
-
-```bash
-git --version
-python3 --version
-uv --version
-```
-
-Nix / Home Managerで管理している場合は、既存設定の`home.packages`へ必要なものだけ追加してください。
-
-```nix
-home.packages = with pkgs; [ git python3 uv ];
-```
-
-設定の配置先・反映コマンドは手元の構成に合わせます。たとえばWSLのstandalone Home Managerなら`home-manager switch -b backup --flake ~/.config/nix-darwin`、nix-darwinなら`darwin-rebuild switch --flake ~/.config/nix-darwin`です。
-Python依存はスクリプト内の定義とロックファイルからuvが用意します。グローバルへのpipインストールは不要です。
-
-### 2. リポジトリを取得する
-
-保存したいフォルダーで実行します。
-
-```bash
-git clone https://github.com/Lehtien/kicho-bot.git
-cd kicho-bot
-```
-
-GitHubの「Code → Download ZIP」で取得した場合は展開し、`README.md`、`scripts/`、`kicho-bot/`があるリポジトリ直下に移動してください。以下のコマンドは、特に記載がなければこの直下で実行します。
-
-### 3. スキルを登録する
-
-両方のエージェントにユーザー全体のスキルとして登録します。
-
-```bash
-uv run --no-project python scripts/install-skills.py
-```
-
-片方だけ使う場合は次のいずれかを実行します。
-
-```bash
-uv run --no-project python scripts/install-skills.py --target codex
-uv run --no-project python scripts/install-skills.py --target claude
-```
-
-| 登録先 | リンク先 |
-|---|---|
-| Codex: `~/.agents/skills/kicho-bot` | このリポジトリの`kicho-bot/` |
-| Claude Code: `~/.claude/skills/kicho-bot` | 同じ`kicho-bot/` |
-
-macOS / Linux / WSLではシンボリックリンク、Windowsではコピーを作成します。`--mode copy`でコピー方式を明示できます。既存の別スキルや編集済みコピーは上書きしません。同じ場所への登録は何度実行しても構いません。リンク方式ではリポジトリを移動・削除するとリンクが切れるため、保存先を決めてから登録してください。
-
-特定の既存プロジェクトだけで使う場合は、ユーザー全体への登録の代わりに次を使います。
-
-```bash
-uv run --no-project python scripts/install-skills.py --project /absolute/path/to/project
-```
-
-プロジェクト内の`.agents/skills/`と`.claude/skills/`に登録されます。リンク方式にはこの端末の絶対パスを使います。共有リポジトリへそのままコミットせず、各端末で登録してください。`--target`との併用も可能です。
-
-### 4. 新しいセッションで呼び出す
-
-Codex:
-
-```text
-$kicho-bot 領収書を分類して、freee用の確認キューを作ってください。
-```
-
-Claude Code:
-
-```text
-/kicho-bot 領収書を分類して、freee用の確認キューを作ってください。
-```
-
-スキル一覧に出ない場合は新しいセッションを開始してください。登録したWindows / WSL / Linux / macOS側のエージェントで使います。
-
-## APIキーの設定
-
-既存の`.env`を上書きせずにひな型をコピーし、エディターでキーを設定します。
-
-```bash
-cp -n .env.example .env
-chmod 600 .env
 ```
 
 Vercel AI Gatewayを使う場合:
@@ -246,282 +103,214 @@ TYPESAFE_API_KEY=ここに自分のキー
 AI_GATEWAY_API_KEY=
 ```
 
-| 接続先 | モデルの初期値 | APIエンドポイント |
-|---|---|---|
-| Vercel AI Gateway | `typesafe-ai/jev` | `https://ai-gateway.vercel.sh/typesafe/v1/systemone` |
-| Jev公式 | `jev-latest` | `https://api.typesafe.ai/v1/systemone` |
+設定の詳細は[VercelのTypeSafe互換API](https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe)と[TypeSafe API](https://docs.typesafe.ai/api)を参照してください。キーをチャットに貼り付ける必要はありません。
 
-キーは各サービスで発行します。設定の詳細は[Vercel公式ドキュメント](https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe)と[TypeSafe APIドキュメント](https://docs.typesafe.ai/api)を参照してください。
+`.env`はGitの対象外です。Claude Desktopの接続設定にもキー本体を書き込まず、このファイルから読み込みます。
 
-- 接続先の優先順は`--provider` → `KICHO_PROVIDER` → 設定済みのキーから自動選択です。両方のキーがある場合は接続先を指定します。
-- モデルの優先順は`--model` → `KICHO_MODEL` → 接続先の初期値です。
-- `.env`はスクリプトが自動で探しません。`uv run --env-file .env ...`で読み込みます。別フォルダーから使う場合は`.env`の絶対パスを指定してください。
-- シェルや秘密管理ツールで環境変数を設定済みなら`--env-file`は省略できます。
+### 4. 起動確認する
 
-キーをチャットや証憑JSONに貼らないでください。`.env`はGitの対象外です。証憑の内容は読取に使うエージェントのサービスへ、抽出テキスト・顧客方針・科目表・履歴ヒントは選んだJev接続先へ渡ります。
-
-## 動作確認
-
-まずAPIを呼ばず、入力とリクエストの生成を確認します。キーは不要です。
-
-```bash
-uv run --frozen --script kicho-bot/scripts/classify_journal.py \
-  kicho-bot/assets/sample-extracted.json --provider vercel --dry-run
+```powershell
+uv run --env-file .env --frozen --script kicho-bot/scripts/mcp_server.py --workspace work/mcp --check
 ```
 
-次に、サンプル1件で実際のAPIを呼びます。サービスの利用料金が発生します。
+初回はPythonや依存パッケージの取得に時間がかかることがあります。次の2項目を確認します。
 
-```bash
-mkdir -p work/demo
-uv run --env-file .env --frozen --script kicho-bot/scripts/classify_journal.py \
-  kicho-bot/assets/sample-extracted.json --out work/demo/draft.json
+- `"status": "ok"`
+- `"credential_configured": true`
+
+この確認ではJevへ送信せず、API料金も発生しません。キーの有効性や残高までは確認しません。`false`の場合は`.env`の接続先とキー名を確認してください。
+
+### 5. Claude Desktopに登録する
+
+```powershell
+uv run --no-project python scripts/configure-mcp.py --install
 ```
 
-`draft.json`に`journal`、`route`、`answers`などが出れば分類は成功です。終了コードが非ゼロなら、エラーを解消してから先へ進んでください。出力先のファイルが存在するだけでは成功ではありません。失敗時は以前の出力を保持します。
-サンプルの同期・決済状況は未確認です。このままfreeeに取り込むためのデータではありません。
+既存の他のMCPや設定は維持します。変更前の設定は同じフォルダーへ`.bak`として保存します。別のkicho-bot設定が登録済みの場合は停止するため、設定を変更する場合だけ`--replace`を付けて再実行してください。
 
-## 領収書・ZIPを渡して使う
+Claude Desktopを完全に終了して再起動し、接続ツールに`kicho-bot`が表示されることを確認します。[MCP公式のClaude Desktop接続ガイド](https://modelcontextprotocol.io/docs/develop/connect-local-servers)も参照できます。
 
-### ファイルをまとめる
+## 普段の使い方
 
-画像はJPG・PNG、文書はPDFを使えます。複数ある場合はZIPにまとめて、エージェントがアクセスできる場所のパスを渡します。顧客ごと・期間ごとに分けると確認しやすくなります。
+### 領収書から仕訳案を作る
+
+Claude Desktopのチャットへ領収書の画像やPDFを添付して、次のように依頼します。
 
 ```text
-work/client-a/
-├── inbox/
-│   └── receipts-2026-09.zip
-├── extracted/             # エージェントが作る抽出JSON
-├── drafts/                # Jevの判定JSON
-├── freee-mapping.json     # 顧客別の対応表
-└── review-queue.json      # 確認状態・CSV出力履歴
-```
-
-ZIP内の例:
-
-```text
-receipts-2026-09/
-├── 2026-09-01_stationery.jpg
-├── 2026-09-03_taxi.png
-└── 2026-09-10_invoice.pdf
-```
-
-ファイル名だけで金額・用途・決済口座を確定しません。文字が潰れている場合やPDFを読めない場合は、推測で埋めずに要確認として扱います。最初は10〜20件程度で、実際の証憑形式に合うか確認すると進めやすくなります。
-
-WSLからWindowsのファイルを参照する場合、`C:\Users\your-name\Downloads\receipts.zip`は通常`/mnt/c/Users/your-name/Downloads/receipts.zip`です。
-
-### エージェントへの依頼例
-
-以下のパス・顧客ID・事業内容を実際のものに置き換えます。Claude Codeでは先頭を`/kicho-bot`にしてください。
-
-```text
-$kicho-bot
-次のZIPを読んで、freee用の確認キューを作ってください。
-
-証憑: /absolute/path/to/receipts-2026-09.zip
+kicho-botで、添付した領収書から仕訳案を作ってください。
 顧客ID: client-a
 事業内容: Web制作の個人事業
-顧客の科目・計上方針: /absolute/path/to/client-policy.md
-freee対応表: /absolute/path/to/freee-mapping.json
-API設定: /absolute/path/to/kicho-bot/.env
-出力先: /absolute/path/to/kicho-bot/work/client-a/
-
-同期済み明細と決済口座は資料から確認し、不明なら要確認にしてください。
-判定根拠を残し、確認画面を開けるところまで進めてください。
-取引の確定とfreeeへの取り込みは私が行います。
+計上方針: 添付した顧客ルールに従ってください。
+読み取れない箇所は推測せず、要確認にしてください。
+今回は仕訳案の確認までお願いします。
 ```
 
-科目・方針の資料がなければ、事業内容、対象期間、よく使う科目、私用混在時の扱いなどを伝えて整理します。freee対応表が未作成なら次の手順で用意します。顧客IDは抽出JSON・対応表・確認キューで統一してください。
+顧客ID・事業内容・方針は実際のものに置き換えます。方針の資料がなければ、用途やよく使う科目などをチャットで伝えてください。顧客専用の科目表がなければ、同梱の個人事業向け科目表を出発点として使います。
 
-`work/`はGitの対象外です。証憑や処理結果をリポジトリの別の場所に置いた場合は、自動的にすべて除外されるわけではありません。
+Claudeが証憑の内容を読み、MCP経由でJevに分類を依頼します。仕訳案と判定結果は作業フォルダーへ保存されます。表示された日付・金額・科目・要確認事項を確認してください。
 
-## freeeの対応表を設定する
+### 保存した仕訳案を確認する
 
-ひな型を顧客フォルダーにコピーします。
+同じ顧客IDを使って依頼します。
 
-```bash
-mkdir -p work/client-a/extracted work/client-a/drafts
-cp kicho-bot/assets/freee-mapping.example.json work/client-a/freee-mapping.json
+```text
+kicho-botで、顧客client-aの保存済み仕訳案を一覧にしてください。
+要確認のものについて、確認すべき点も教えてください。
 ```
 
-freeeの対象事業所にある実際の名称・設定と照合し、編集します。
+顧客IDは継続して同じものを使います。同じ証憑IDを再分類すると保存済みの案を更新します。仕訳案が作られたことは、会計ソフトへの登録完了を意味しません。
+
+### 画像・PDF・ZIPの扱い
+
+読取はClaude Desktopが担当します。MCPサーバー自身にはOCRエンジンを搭載しておらず、ホストが読めなかった内容を補完しません。文字が潰れている場合は、鮮明な画像で読み直してください。
+
+**ZIPは先に展開し、必要な画像・PDFを添付してください。** このMCPは、任意のローカルファイルを読む機能やZIP展開ツールを公開していません。
+
+### データの送信と料金
+
+添付資料はClaude Desktopで読み取ります。通常の分類では、抽出テキスト・顧客方針・科目表を設定済みのJev接続先へ送信し、APIの利用料金が発生します。ツール実行の許可表示はClaude Desktopの設定に従います。
+
+送信せず入力形式だけ試したい場合は「`dry_run=true`で確認して」と指示します。この場合は仕訳案の保存も行いません。
+
+## freeeを使う場合
+
+### 1. 対応表を用意する
+
+[freee対応表のひな型](kicho-bot/assets/freee-mapping.example.json)をコピーし、顧客ごとの設定を作ります。初期保存先を使っている場合のPowerShell例:
+
+```powershell
+if (-not (Test-Path work/mcp/freee-mapping.json)) { Copy-Item kicho-bot/assets/freee-mapping.example.json work/mcp/freee-mapping.json }
+notepad work/mcp/freee-mapping.json
+```
+
+既存の対応表がある場合は、そのファイルを編集してください。対象事業所のfreee設定と照合する項目は次のとおりです。
 
 | 設定 | 内容 |
 |---|---|
-| `client_id` | 抽出JSONの`client.client_id`と同じ顧客ID |
-| `expense_accounts` / `income_accounts` | 内部科目ID → freeeの実際の勘定科目名 |
-| `wallets` | 銀行・カード・現金ごとのfreee口座名、相手科目ID、同期状態 |
-| `unpaid_accounts` | 未決済として認める相手科目ID |
-| `tax_rules` | 収支・税カテゴリ・適格請求書区分・対象期間に応じたfreee税区分名 |
-| `partner_names` | 証憑の取引先名 → freeeの取引先名。任意 |
-| `verified` | 内容を照合し、使用を認めた対応表だけ`true` |
+| `client_id` | 仕訳案と同じ顧客ID |
+| `expense_accounts` / `income_accounts` | 内部科目IDとfreeeの勘定科目名の対応 |
+| `wallets` | 実際のカード・銀行・現金口座名と同期状態 |
+| `tax_rules` | 収支・税カテゴリ・適格請求書区分・対象期間に応じたfreee税区分 |
+| `verified` | ユーザーが設定と照合した場合だけ`true` |
 
-ひな型の`verified`は`false`です。コピーしただけでは変更しません。税区分は対象期間や事業所設定に合うものを確認してください。必要な対応がなければCSV出力を止めます。
-カード利用はカード口座に対応させます。「未払金_カード」という内部科目だけでカード名や銀行引落口座を推測しません。
+コピーしただけでは`verified`を変更しません。口座や税区分を推測せず、該当する対応がなければ要確認とします。詳細は[freee変換仕様](kicho-bot/references/freee-export.md)を参照してください。
 
-抽出JSONには次の情報も必要です。詳細な形式は[抽出スキーマ](kicho-bot/references/extract-schema.md)と[freee変換仕様](kicho-bot/references/freee-export.md)を参照してください。
+### 2. 確認画面を開く
 
-| 項目 | 意味 |
-|---|---|
-| `extracted.transaction_type` | 支出`expense` / 収入`income` / 不明`unknown` |
-| `freee_context.source_status` | 既存取引・同期明細なしを確認した`receipt_only` / 同期済み`synced_statement` / 不明`unknown` |
-| `freee_context.statement_id` | 同期明細のID。設定されていれば新規取引のCSV対象外 |
-| `freee_context.settlement_status` | 決済済み`paid` / 未決済`unpaid` / 不明`unknown` |
-| `freee_context.wallet_key` | 対応表にある実際の決済口座キー。未決済は`null` |
-| `freee_context.payment_date` | 実際の決済日。未決済は`null` |
-| `freee_context.due_date` / `item` | 支払期日 / freeeの品目名。不要ならそれぞれ`null` / 空文字 |
+照合済みの対応表JSONをClaude Desktopへ添付して依頼します。
 
-## コマンドで処理する
-
-画像から抽出済みのJSONがある場合は、次の3段階で進められます。最初のJSONは[入力サンプル](kicho-bot/assets/sample-extracted.json)を参考にしてください。
-
-### 1. Jevで分類する
-
-```bash
-uv run --env-file .env --frozen --script kicho-bot/scripts/classify_journal.py \
-  work/client-a/extracted/receipt-001.json \
-  --out work/client-a/drafts/receipt-001.json
+```text
+顧客client-aの今回の仕訳案を、添付したfreee対応表で確認キューにしてください。
+対応表はfreeeの実際の設定と照合済みです。
+確認画面のURLを表示してください。確定とCSV出力は私が行います。
 ```
 
-接続先を明示する場合は`--provider vercel`または`--provider typesafe`を追加します。顧客専用の科目表は`--chart /absolute/path/to/chart.json`で指定できます。
-分類がエラーになったファイルはキュー作成に渡さず、原因を解消して再実行してください。
+返された`http://127.0.0.1:.../#...`を、末尾まで含めてブラウザーで開きます。
 
-### 2. 確認キューを作成・更新する
-
-```bash
-uv run --frozen --script kicho-bot/scripts/freee_deals.py \
-  "work/client-a/drafts/*.json" \
-  --mapping work/client-a/freee-mapping.json \
-  --out work/client-a/review-queue.json
-```
-
-顧客ごとに同じキューファイルを使います。既存のキューへ追加・更新でき、内容や対応表が変わった候補の確定は失効します。
-
-### 3. 確認画面を起動する
-
-```bash
-uv run --frozen --script kicho-bot/scripts/review_freee.py \
-  work/client-a/review-queue.json
-```
-
-ターミナルに表示される`http://127.0.0.1:8765/#...`を、末尾のトークンまで含めてブラウザーで開きます。ローカルの認証付き画面です。終了は`Ctrl+C`。ポートが使用中なら`--port 8766`を追加できます。
-
-## 確認画面とCSVの取り込み
-
-1. 証憑の内容、金額、日付、科目、税区分、決済口座、既存登録の有無を確認します。
+1. 証憑、日付、金額、科目、税区分、決済口座、既存登録の有無を確認します。
 2. 出力可能な行の「この取引を確定」を押します。
-3. 「確定した取引をCSV出力」でUTF-8 BOM付きCSVをダウンロードします。
-4. freee会計の「取引データのインポート」でCSVを選び、プレビューを確認して取り込みます。
+3. 「確定した取引をCSV出力」でCSVを取得します。
+4. freeeの「取引データのインポート」でプレビューを確認して取り込みます。
 
-振替伝票用の仕訳CSVではありません。操作は[freee公式の取引インポート手順](https://support.freee.co.jp/hc/ja/articles/202847320)を参照してください。
+操作は[freee公式の取引インポート手順](https://support.freee.co.jp/hc/ja/articles/202847320)を参照してください。MCPツールによる自動確定やfreeeへの直接登録は行いません。
 
-| 状態 | 扱い |
-|---|---|
-| `candidate_auto`、対応表が完成、同期重複なし | 人が確定した後だけCSVに含める |
-| `review` | 証憑・方針などを確認・修正し、再判定する |
-| 同期済み口座・明細 | 既存明細への科目提案。新規取引CSVには含めない |
-| 対応表不足、未確認、同期・決済状態不明 | CSVに含めない |
-| 出力済み | 同じキューから新たに出力せず、履歴から元のCSVを再取得できる |
+### 出力できる範囲
 
-`candidate_auto`は仕訳候補の区分で、自動登録済みという意味ではありません。`review`の理由・判定条件は[振り分け仕様](kicho-bot/references/routing.md)に記載しています。
+単一明細の収入・支出、全額決済または未決済、税込・内税の取引CSVに対応します。複合仕訳・税率混在・部分決済・返金は対象外です。
 
-freeeへの取り込み済みかどうかは自動照会しません。同じCSVを重複インポートしないでください。別キューの作成や抽出内容の変更では同一証憑を検出できないことがあります。freeeの管理番号も重複排除キーではありません。
-確認キューには証憑情報・確定状態・出力したCSVを保存するため、顧客ごとに保管・バックアップしてください。
+要確認、対応表不足、同期・決済状態が不明な行は出力しません。同期済み口座・明細は既存明細への科目提案として扱います。同期状況や取り込み済みかどうかはfreeeから自動取得しません。
 
-## 架空領収書20件で試す
+同じキューの出力済み行は再出力せず、履歴から元のCSVを再取得できます。ただし、別キューや抽出内容の変更では同一証憑を検出できないことがあります。同じCSVを重複インポートしないでください。
 
-[テストデータ](tests/fixtures/receipts/README.md)には、通常経費、未払い、私用、税率混在、読取不明、現金売上など20件を用意しています。店舗・取引・方針は架空です。領収書風テキストと抽出済みJSONであり、画像OCRの試験ではありません。
+確認画面はMCP接続中に使えます。Claude Desktopの終了や再接続後は「確認画面を開いて」と依頼し、新しいURLを取得してください。
 
-```bash
-uv run --env-file .env --frozen --script tests/run-receipt-evaluation.py \
-  --out tests/results/my-first-run
+## 保存場所と更新
+
+### データの保存場所
+
+初期値はリポジトリ内の`work/mcp/`です。
+
+```text
+work/mcp/
+├── drafts/       # 仕訳案JSON
+└── queues/       # 顧客ごとの確定状態・CSV出力履歴
 ```
 
-実APIを20回呼びます。出力先は未使用のフォルダー名にしてください。期待値はAPIに送らず、結果と比較します。1件だけなら次のように指定します。
+このフォルダーを顧客情報として保管・バックアップしてください。`work/`はGitの対象外です。
 
-```bash
-uv run --env-file .env --frozen --script tests/run-receipt-evaluation.py \
-  --case 01-stationery --out tests/results/my-single-run
+別の保存先を使う場合は登録時に指定します。
+
+```powershell
+uv run --no-project python scripts/configure-mcp.py --install --workspace "C:\Users\your-name\Documents\kicho-data"
 ```
 
-結果のJSONと`REPORT.md`は指定先に保存します。`tests/results/`はGitの対象外です。
+登録済みの設定を変更する場合は`--replace`も追加します。既存データは自動移動しません。引き継ぐ場合は、Claude Desktopを終了してから新しい保存先へデータを移してください。
 
-[実APIでの検証結果](docs/evaluation.md): 修正後は再試行を含め20件が正常完了し、候補12件・要確認8件、事前想定との全項目一致は17件でした。これは小規模な架空データの結果です。テスト用の対応表は未確認なので、実際のfreeeへ取り込まないでください。
+### 更新する
 
-## 困ったとき
+Gitで取得した場合は、リポジトリ直下で更新してClaude Desktopを再起動します。
 
-| 症状 | 確認すること |
-|---|---|
-| スキルが出てこない | 登録先とリンク先、新しいセッション、エージェントを起動したOSを確認 |
-| 既存の登録がありインストールできない | 既存スキルの内容を確認。必要なものを退避し、対象リンクを整理してから再実行 |
-| Windowsでリンク権限エラー | `--mode symlink`を外してコピー方式で登録 |
-| JSONが読めない・文字化けする | `--out`でUTF-8保存。UTF-16のJSONはUTF-8で保存し直す（UTF-8 BOMは入力可能） |
-| キーがないと言われる | `--env-file`の指定、`.env`のパス、選択した接続先とキー変数の組み合わせを確認 |
-| 401 / 403 | キーの有効性と接続先の利用権限を確認 |
-| 429 / 503 | 利用上限やサービス状況を確認し、失敗した件だけ時間を置いて再実行 |
-| 応答形式エラー | エラーを記録し、その件だけ再実行。検証を外してCSVへ流さない |
-| 顧客IDの不一致 | 抽出JSON、対応表、既存キューのIDを確認。顧客ごとにキューを分ける |
-| 確定ボタンが押せない | `review`の理由、`verified`、不足する税区分・口座、同期・決済状態を確認 |
-| 画面の認証エラー | 起動時に表示されたURLの`#`以降も含めて開く。再起動後は新しいURLを使う |
-| 更新後も古い候補が残る | 必要な証憑を再分類し、同じキューに対して作成・更新コマンドを実行 |
-
-## 更新・削除
-
-Gitで取得した場合はリポジトリ直下で更新します。
-
-```bash
+```powershell
 git pull --ff-only
 ```
 
-リンク方式では同じ保存先なら再登録は不要です。Windowsなどのコピー方式では`uv run --no-project python scripts/install-skills.py`を再実行して更新してください。`.env`や`work/`はそのまま使えます。更新時に入力形式が変わった場合は、新しい仕様に合わせて再判定してください。
+ZIPで取得した場合は、新しいZIPを別フォルダーへ展開し、`.env`と保存データを引き継いでから、登録スクリプトを`--install --replace`付きで再実行します。以前のフォルダーは動作確認後に整理してください。
 
-Windowsのコピー登録を削除する場合は、エクスプローラーで登録先の`kicho-bot`フォルダーを確認し、そのフォルダーだけ削除します。証憑を保存した`work/`とは別です。
+リポジトリや`.env`を移動した場合も登録し直してください。キーを変更した場合はClaude Desktopを再起動します。
 
-リンク方式の登録を削除する場合は、次のパスがこのリポジトリを指すシンボリックリンクであることを確認し、リンクだけを削除します。実体のスキル・証憑・キューは残ります。
+### 登録を解除する
 
-```bash
-ls -ld ~/.agents/skills/kicho-bot ~/.claude/skills/kicho-bot
+Claude Desktopの設定ファイルにある`mcpServers`から`kicho-bot`エントリーだけを削除し、再起動します。仕訳案・確認キューは残ります。設定を戻す場合は、Desktopを終了してから保存された`.bak`を復元してください。
+
+## 困ったとき
+
+| 状況 | 対処 |
+|---|---|
+| ツールが表示されない | Desktopを完全終了して再起動。先に`--check`で依存の取得と起動確認を済ませる |
+| `uv`が見つからない | 登録コマンドに`--uv "C:\path\to\uv.exe"`を付ける |
+| Windowsで接続できない | Windows側のuv・リポジトリ・`.env`を使う。WSLのパスをそのまま登録しない |
+| キーが未設定と言われる | `.env`の接続先とキー名を確認し、Desktopを再起動 |
+| 401 / 403 | キーの有効性と接続先の利用権限を確認 |
+| 429 / 503 | 利用上限やサービス状況を確認し、失敗した件だけ時間を置いて再実行 |
+| 仕訳案が見つからない | 顧客IDと登録時の保存先を確認 |
+| 確認URLが開かない | MCPを再接続し、新しい確認画面のURLを依頼 |
+| 確定ボタンが押せない | 要確認理由、対応表、同期・決済状態を確認し、必要なら再判定 |
+
+## その他の環境・詳しい設定
+
+macOSではuvを用意し、リポジトリ直下で同じ起動確認・登録コマンドを実行できます。Nix / Home Managerを使っている場合は既存の宣言でuvを管理してください。
+
+設定ファイルの場所:
+
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+`--install`なしで実行すると、自分の環境の絶対パスを入れた設定JSONだけを表示します。キーの値は含みません。
+
+```powershell
+uv run --no-project python scripts/configure-mcp.py
 ```
 
-確認できた対象だけ実行します。
+現在のMCPはローカルstdio方式です。Web版から接続する公開HTTPサーバーは含みません。別のstdio対応クライアントでは、表示された`command`と`args`を登録できます。
 
-```bash
-unlink ~/.agents/skills/kicho-bot
-unlink ~/.claude/skills/kicho-bot
+- [MCPツール一覧・他クライアントの設定](docs/mcp-reference.md)
+- [Codex / Claude Codeスキル・手動コマンド](docs/skills-and-cli.md)
+- [入力JSONの仕様](kicho-bot/references/extract-schema.md)
+- [freee変換と確認の仕様](kicho-bot/references/freee-export.md)
+
+## 検証と開発
+
+WindowsネイティブとWSLで、MCP通信を含む31件の自動テストが成功しています。分類・保存・再取得、確認画面での確定とCSV出力、顧客混在の拒否、APIキーの非表示、登録時の既存設定保護などを確認しています。
+
+**Claude Desktopの画面上で実際の添付証憑を読み、実務の仕訳を完成させる一連の操作は未検証です。**
+
+- [架空領収書20件のテストデータ](tests/fixtures/receipts/README.md)
+- [Jev実APIでの検証結果](docs/evaluation.md)
+
+APIを呼ばない自動テストは、リポジトリ直下で実行できます。
+
+```powershell
+uv run --with "pydantic>=2.12,<3" --with "mcp>=2.2,<3" python -m unittest discover -s tests -v
 ```
 
-プロジェクト内に登録した場合は、そのプロジェクトの`.agents/skills/kicho-bot`または`.claude/skills/kicho-bot`が対象です。
-
-## 開発・ファイル構成
-
-APIを呼ばないローカルテスト:
-
-```bash
-uv run --with 'pydantic>=2.12,<3' --with 'mcp>=2.2,<3' python -m unittest discover -s tests -v
-```
-
-Windowsネイティブ（Python 3.11）とWSLで、MCP通信を含む31件のテストが成功しています。分類条件、入力・応答の検証、取引CSVへの変換、同期・顧客混在・未確認データの除外、確認画面の認証・確定・CSV出力に加え、コピー登録・更新時の編集保護、日本語パス、UTF-8保存、プロセス間ロック、MCPでのツール呼出し・保存・確認画面・接続設定を検証します。画像読取からの実務運用や各エージェントのWindows環境全体を保証する試験ではありません。
-
-```text
-.
-├── README.md
-├── .env.example
-├── scripts/install-skills.py
-├── scripts/configure-mcp.py      # Claude Desktopの接続設定
-├── kicho-bot/
-│   ├── SKILL.md                  # エージェント共通の作業手順
-│   ├── assets/                   # 入力例・科目表・対応表・確認画面
-│   ├── references/               # 抽出形式・Jev質問・振り分け・freee仕様
-│   └── scripts/                  # 分類・変換・ローカル確認サーバー
-├── tests/
-│   ├── test_kicho.py
-│   ├── fixtures/receipts/        # 架空領収書20件
-│   └── run-receipt-evaluation.py
-└── docs/                        # MCP導入手順・実API検証の要約
-```
-
-仕様の参照先（2026-09-24確認）:
-[Codexのスキル](https://developers.openai.com/codex/skills/)、
-[Claude Codeのスキル](https://code.claude.com/docs/en/skills)、
-[VercelのTypeSafe互換API](https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe)、
-[TypeSafe API](https://docs.typesafe.ai/api)、
-[freee取引インポート](https://support.freee.co.jp/hc/ja/articles/202847320)。
+MCPとスキルは同じPythonの分類・確認処理を使います。MCPの入口は`kicho-bot/scripts/mcp_server.py`、Claude Desktopの登録は`scripts/configure-mcp.py`です。
