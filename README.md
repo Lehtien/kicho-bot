@@ -1,6 +1,6 @@
 # kicho-bot
 
-日本語の領収書・請求書を読み、TypeSafe/Jevで顧客の科目・方針に沿った**仕訳案JSON**を作る、Codex / Claude Code共通スキルです。Windows・macOS・Linuxで利用できます。
+日本語の領収書・請求書を読み、TypeSafe/Jevで顧客の科目・方針に沿った**仕訳案JSON**を作る、Claude Desktop向けMCPサーバー／Codex・Claude Code共通スキルです。Windows・macOS・Linuxで利用できます。
 
 Jev公式APIとVercel AI Gatewayに対応しています。借方・貸方、判定根拠、確信度は会計ソフトに依存しないJSONに保存します。**freeeの確認画面・取引CSVは任意の出力機能**です。現在、会計ソフト専用のCSV出力はfreeeに対応し、他社形式への変換は未実装です。
 
@@ -16,9 +16,12 @@ flowchart LR
     E --> H[要確認・同期明細への科目提案]
 ```
 
+経理担当者がチャット中心で使う場合は、[Claude Desktop＋MCPの導入手順](docs/claude-desktop.md)から始められます。添付証憑から仕訳案を作り、必要な場合だけfreeeの確認画面へ進みます。
+
 ## 目次
 
 - [できること・対応環境](#できること対応環境)
+- [Claude Desktop＋MCPで使う](docs/claude-desktop.md)
 - [Windowsで始める](#windowsで始める)
 - [freeeを使わずに利用する](#freeeを使わずに利用する)
 - [インストール](#インストール)
@@ -37,7 +40,7 @@ flowchart LR
 
 | 項目 | 対応内容 |
 |---|---|
-| エージェント | Codex、Claude Code |
+| エージェント | Claude Desktop（MCP）、Codex、Claude Code |
 | OS | WindowsネイティブとWSL2 / Linuxで検証。macOSは同じ構成で利用可能ですが未検証 |
 | Windows | PowerShellから利用可能。スキルはコピー登録のため管理者権限・開発者モード・WSLは不要 |
 | 入力 | エージェントが読める画像・PDF、これらをまとめたZIP、抽出済みJSON |
@@ -46,7 +49,7 @@ flowchart LR
 | freee出力（任意） | 単一明細の収入・支出、全額決済または未決済、税込・内税の取引CSV |
 | 対象外 | 複合仕訳、税率混在の一括出力、部分決済、返金、freeeへのAPI直接登録 |
 
-画像・PDFの読取とZIPの展開はホストのエージェントが行います。Pythonスクリプトは抽出済みJSONから判定するため、単独で画像をOCRするコマンドではありません。利用するエージェントの画像・PDF読取機能とファイルアクセスが必要です。
+画像・PDFの読取はホストが行います。ZIPの展開はCodex / Claude Codeのファイル操作を使います。MCP版ではZIPを先に展開して証憑を添付してください。Pythonスクリプトは抽出済みJSONから判定するため、単独で画像をOCRするコマンドではありません。利用するエージェントの画像・PDF読取機能とファイルアクセスが必要です。
 
 同期済みカード・銀行明細は既存明細への科目提案として扱います。同期状況や既存登録の有無はfreeeから自動取得しません。
 
@@ -493,16 +496,17 @@ unlink ~/.claude/skills/kicho-bot
 APIを呼ばないローカルテスト:
 
 ```bash
-uv run --with 'pydantic>=2.12,<3' python -m unittest discover -s tests -v
+uv run --with 'pydantic>=2.12,<3' --with 'mcp>=2.2,<3' python -m unittest discover -s tests -v
 ```
 
-Windowsネイティブ（PowerShell / Python 3.11）とWSLで25件のテストが成功しています。分類条件、入力・応答の検証、取引CSVへの変換、同期・顧客混在・未確認データの除外、確認画面の認証・確定・CSV出力に加え、コピー登録・更新時の編集保護、日本語パス、UTF-8保存、プロセス間ロックを検証します。画像読取からの実務運用や各エージェントのWindows環境全体を保証する試験ではありません。
+Windowsネイティブ（Python 3.11）とWSLで、MCP通信を含む31件のテストが成功しています。分類条件、入力・応答の検証、取引CSVへの変換、同期・顧客混在・未確認データの除外、確認画面の認証・確定・CSV出力に加え、コピー登録・更新時の編集保護、日本語パス、UTF-8保存、プロセス間ロック、MCPでのツール呼出し・保存・確認画面・接続設定を検証します。画像読取からの実務運用や各エージェントのWindows環境全体を保証する試験ではありません。
 
 ```text
 .
 ├── README.md
 ├── .env.example
 ├── scripts/install-skills.py
+├── scripts/configure-mcp.py      # Claude Desktopの接続設定
 ├── kicho-bot/
 │   ├── SKILL.md                  # エージェント共通の作業手順
 │   ├── assets/                   # 入力例・科目表・対応表・確認画面
@@ -512,7 +516,7 @@ Windowsネイティブ（PowerShell / Python 3.11）とWSLで25件のテスト�
 │   ├── test_kicho.py
 │   ├── fixtures/receipts/        # 架空領収書20件
 │   └── run-receipt-evaluation.py
-└── docs/evaluation.md            # 実API検証の要約
+└── docs/                        # MCP導入手順・実API検証の要約
 ```
 
 仕様の参照先（2026-09-24確認）:

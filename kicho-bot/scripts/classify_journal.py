@@ -212,6 +212,51 @@ def format_entry(extracted_doc: dict, answers: dict, chart: dict) -> dict:
     }
 
 
+class ClassificationFailure(Exception):
+    def __init__(self, message: str, exit_code: int = 1):
+        super().__init__(message)
+        self.exit_code = exit_code
+
+
+def resolve_provider(provider: str | None = None, model: str | None = None) -> tuple[str, str, str, str]:
+    provider = provider or os.environ.get("KICHO_PROVIDER")
+    if provider is None:
+        available = [name for name, (_, _, key) in PROVIDERS.items() if os.environ.get(key)]
+        if len(available) > 1:
+            raise ValueError("両方のAPIキーが設定されています。接続先を明示してください。")
+        provider = available[0] if available else "typesafe"
+    if provider not in PROVIDERS:
+        raise ValueError("KICHO_PROVIDERには vercel または typesafe を指定してください。")
+    endpoint, default_model, key_name = PROVIDERS[provider]
+    return provider, endpoint, model or os.environ.get("KICHO_MODEL") or default_model, key_name
+
+
+def classify_document(extracted_doc: dict, chart: dict, provider: str | None = None,
+                      model: str | None = None) -> dict:
+    """Shared live classification for CLI and MCP; errors never include upstream bodies."""
+    extracted_doc = ExtractedDocument.model_validate(extracted_doc).model_dump()
+    chart = Chart.model_validate(chart).model_dump()
+    provider, endpoint, model, key_name = resolve_provider(provider, model)
+    payload = build_payload(extracted_doc, chart, model)
+    api_key = os.environ.get(key_name)
+    if not api_key:
+        raise ClassificationFailure(f"{key_name}を環境変数に設定してください。送信せずに確認する場合は --dry-run を指定します。", 2)
+    try:
+        result = validate_response(call_jev(payload, endpoint, api_key), payload)
+    except urllib.error.HTTPError as exc:
+        raise ClassificationFailure(f"Jevへの接続に失敗しました（HTTP {exc.code}）。認証設定とサービスの状態を確認してください。") from None
+    except (urllib.error.URLError, TimeoutError, OSError):
+        raise ClassificationFailure("Jevと通信できません。ネットワーク接続を確認してください。") from None
+    except (ValueError, UnicodeError):
+        raise ClassificationFailure("Jevの応答形式を検証できませんでした。仕訳案は作成していません。") from None
+    answers = result["answers"]
+    return {
+        "draft_id": draft_id(extracted_doc), "extracted_document": extracted_doc, "chart": chart,
+        "provider": provider, "model": result["model"], "route": route(extracted_doc, answers),
+        "journal": format_entry(extracted_doc, answers, chart), "answers": answers, "usage": result["usage"],
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Classify an extracted receipt with Jev")
     parser.add_argument("extracted_json")
@@ -222,16 +267,10 @@ def main() -> int:
     parser.add_argument("--model", help="Override the selected provider's model")
     args = parser.parse_args()
 
-    provider = args.provider
-    if provider is None:
-        available = [name for name, (_, _, key) in PROVIDERS.items() if os.environ.get(key)]
-        if len(available) > 1:
-            parser.error("両方のAPIキーが設定されています。--provider vercel または typesafe を指定してください。")
-        provider = available[0] if available else "typesafe"
-    if provider not in PROVIDERS:
-        parser.error("KICHO_PROVIDERには vercel または typesafe を指定してください。")
-    endpoint, default_model, key_name = PROVIDERS[provider]
-    model = args.model or os.environ.get("KICHO_MODEL") or default_model
+    try:
+        provider, endpoint, model, key_name = resolve_provider(args.provider, args.model)
+    except ValueError as exc:
+        parser.error(str(exc))
 
     try:
         extracted_doc = ExtractedDocument.model_validate(load_json(Path(args.extracted_json))).model_dump()
@@ -248,35 +287,13 @@ def main() -> int:
     if args.dry_run:
         return write_json({"mode": "dry-run", "provider": provider, "endpoint": endpoint, "payload": payload}, args.out)
 
-    api_key = os.environ.get(key_name)
-    if not api_key:
-        print(f"{key_name}を環境変数に設定してください。送信せずに確認する場合は --dry-run を指定します。", file=sys.stderr)
-        return 2
     try:
-        result = validate_response(call_jev(payload, endpoint, api_key), payload)
-    except urllib.error.HTTPError as exc:
-        print(f"Jevへの接続に失敗しました（HTTP {exc.code}）。認証設定とサービスの状態を確認してください。", file=sys.stderr)
-        return 1
-    except (urllib.error.URLError, TimeoutError, OSError):
-        print("Jevと通信できません。ネットワーク接続を確認してください。", file=sys.stderr)
-        return 1
-    except (ValueError, UnicodeError):
-        print("Jevの応答形式を検証できませんでした。仕訳案は作成していません。", file=sys.stderr)
-        return 1
-
-    answers = result["answers"]
-    output = {
-        "draft_id": draft_id(extracted_doc),
-        "extracted_document": extracted_doc,
-        "chart": chart,
-        "provider": provider,
-        "model": result["model"],
-        "route": route(extracted_doc, answers),
-        "journal": format_entry(extracted_doc, answers, chart),
-        "answers": answers,
-        "usage": result["usage"],
-    }
+        output = classify_document(extracted_doc, chart, provider, model)
+    except ClassificationFailure as exc:
+        print(str(exc), file=sys.stderr)
+        return exc.exit_code
     return write_json(output, args.out)
+
 
 
 if __name__ == "__main__":
