@@ -13,14 +13,15 @@ import uuid
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def make_config(uv_path: Path, env_file: Path, workspace: Path) -> dict:
+def make_config(uv_path: Path, env_file: Path, workspace: Path, server_path: Path | None = None) -> dict:
     uv_path = uv_path.expanduser().resolve(strict=True)
     env_file = env_file.expanduser().resolve(strict=True)
-    server = ROOT / "kicho-bot/scripts/mcp_server.py"
+    server = (server_path or ROOT / "kicho-bot/scripts/mcp_server.py").resolve(strict=True)
     if not uv_path.is_file() or not env_file.is_file() or not server.is_file():
         raise ValueError("uv、.env、MCPサーバーの場所を確認してください。")
     return {"mcpServers": {"kicho-bot": {"command": str(uv_path), "args": [
-        "run", "--env-file", str(env_file), "--frozen", "--script", str(server),
+        "run", "--directory", str(env_file.parent), "--env-file", env_file.name,
+        "--frozen", "--script", str(server),
         "--workspace", str(workspace.expanduser().resolve()),
     ]}}}
 

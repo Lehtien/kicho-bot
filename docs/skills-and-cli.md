@@ -496,7 +496,7 @@ unlink ~/.claude/skills/kicho-bot
 APIを呼ばないローカルテスト:
 
 ```bash
-uv run --with 'pydantic>=2.12,<3' --with 'mcp>=2.2,<3' python -m unittest discover -s tests -v
+uv run --with 'pydantic>=2.12,<3' --with 'mcp>=2.2,<3' --with 'python-dotenv>=1.2,<2' python -m unittest discover -s tests -v
 ```
 
 Windowsネイティブ（Python 3.11）とWSLで、MCP通信を含む31件のテストが成功しています。分類条件、入力・応答の検証、取引CSVへの変換、同期・顧客混在・未確認データの除外、確認画面の認証・確定・CSV出力に加え、コピー登録・更新時の編集保護、日本語パス、UTF-8保存、プロセス間ロック、MCPでのツール呼出し・保存・確認画面・接続設定を検証します。画像読取からの実務運用や各エージェントのWindows環境全体を保証する試験ではありません。

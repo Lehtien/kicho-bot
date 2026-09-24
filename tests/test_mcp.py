@@ -133,7 +133,9 @@ class ConfigTests(unittest.TestCase):
             env.write_text("TYPESAFE_API_KEY=private-test-key", encoding="utf-8")
             config = configuration.make_config(Path(sys.executable), env, Path(temp) / "経理")
             self.assertNotIn("private-test-key", json.dumps(config))
-            self.assertIn(str(env), config["mcpServers"]["kicho-bot"]["args"])
+            args = config["mcpServers"]["kicho-bot"]["args"]
+            directory = Path(args[args.index("--directory") + 1])
+            self.assertEqual(directory / args[args.index("--env-file") + 1], env)
 
 
 if __name__ == "__main__":

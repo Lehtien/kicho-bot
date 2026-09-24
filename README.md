@@ -39,96 +39,32 @@ MCPサーバーは同じPCで動きます。WindowsネイティブとWSLで自�
 
 ## 初回設定（Windows）
 
-### 1. 必要なものを用意する
+**ZIPを展開して`setup.cmd`をダブルクリックするだけで、接続に必要な設定をまとめて行えます。**
 
-- Windows側のClaude Desktop
-- [uv](https://docs.astral.sh/uv/getting-started/installation/)（Pythonの実行環境・依存関係を用意するツール）
-- Vercel AI GatewayまたはTypeSafe/JevのAPIキー
+先にClaude Desktopと、Vercel AI GatewayまたはTypeSafe/JevのAPIキーを用意してください。Claudeの利用環境とJevのAPI料金は別です。
 
-Claude Desktopの利用環境とJevのAPI利用料金は別です。スキルの登録、WSL、管理者権限はkicho-botの登録には不要です。
+1. [ZIPをダウンロード](https://github.com/Lehtien/kicho-bot/archive/refs/heads/main.zip)して展開します。
+2. 展開したフォルダーの**`setup.cmd`をダブルクリック**します。初回だけ接続先を選び、APIキーを入力します。キーの入力内容は表示されません。
+3. 「セットアップが完了しました」と表示されたら、Claude Desktopを完全に終了して再起動します。
 
-uvがない場合は、PowerShellで次を実行します。導入方法の詳細は[uv公式ガイド](https://docs.astral.sh/uv/getting-started/installation/)を参照してください。
+uv・Pythonの準備、MCPの起動・接続確認、Claude Desktopへの登録を自動で行います。初回はダウンロードに時間がかかることがあります。管理者権限やGitの準備は不要です。
 
-```powershell
-winget install --id astral-sh.uv -e
+すでに設定したAPIキーや仕訳案の保存先があれば引き継ぎます。他のMCP設定は維持し、変更前のClaude Desktop設定はバックアップします。セットアップ中にJevへ証憑を送信したり、API料金が発生したりすることはありません。
+
+キーの発行・利用設定は[Vercelの案内](https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe)または[TypeSafeの案内](https://docs.typesafe.ai/api)を参照してください。**APIキーをClaudeのチャットに貼る必要はありません。**
+
+### Claudeにセットアップを頼む場合
+
+PCのファイル操作・プログラム実行ができるClaude環境なら、次の依頼文を使えます。
+
+```text
+https://github.com/Lehtien/kicho-bot をWindowsのClaude Desktop向けにセットアップしてください。
+リポジトリのSETUP.mdに従って、setup.cmdを私が入力できるウィンドウで起動してください。
+APIキーは私がそのウィンドウへ入力します。チャットでキーを聞いたり表示したりしないでください。
+既存の設定と保存データを引き継ぎ、最後にセットアップ結果を確認してください。
 ```
 
-PowerShellを開き直して確認します。
-
-```powershell
-uv --version
-```
-
-Pythonはuvが必要に応じて用意するため、別途pipを設定する必要はありません。
-
-### 2. kicho-botを取得する
-
-このページの「Code → Download ZIP」、または[ZIPをダウンロード](https://github.com/Lehtien/kicho-bot/archive/refs/heads/main.zip)から取得し、保存したい場所へ展開します。
-
-PowerShellで、展開した`README.md`があるフォルダーへ移動します。パスは自分の環境に置き換えてください。
-
-```powershell
-Set-Location "C:\Users\your-name\Documents\kicho-bot-main"
-```
-
-以降のコマンドはこのフォルダーで実行します。Gitを使う場合は、次の方法でも取得できます。
-
-```powershell
-git clone https://github.com/Lehtien/kicho-bot.git
-Set-Location kicho-bot
-```
-
-### 3. APIキーを設定する
-
-ひな型をコピーして開きます。既存の`.env`は上書きしません。
-
-```powershell
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }
-notepad .env
-```
-
-Vercel AI Gatewayを使う場合:
-
-```dotenv
-KICHO_PROVIDER=vercel
-AI_GATEWAY_API_KEY=ここに自分のキー
-TYPESAFE_API_KEY=
-```
-
-Jev公式を使う場合:
-
-```dotenv
-KICHO_PROVIDER=typesafe
-TYPESAFE_API_KEY=ここに自分のキー
-AI_GATEWAY_API_KEY=
-```
-
-設定の詳細は[VercelのTypeSafe互換API](https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe)と[TypeSafe API](https://docs.typesafe.ai/api)を参照してください。キーをチャットに貼り付ける必要はありません。
-
-`.env`はGitの対象外です。Claude Desktopの接続設定にもキー本体を書き込まず、このファイルから読み込みます。
-
-### 4. 起動確認する
-
-```powershell
-uv run --env-file .env --frozen --script kicho-bot/scripts/mcp_server.py --workspace work/mcp --check
-```
-
-初回はPythonや依存パッケージの取得に時間がかかることがあります。次の2項目を確認します。
-
-- `"status": "ok"`
-- `"credential_configured": true`
-
-この確認ではJevへ送信せず、API料金も発生しません。キーの有効性や残高までは確認しません。`false`の場合は`.env`の接続先とキー名を確認してください。
-
-### 5. Claude Desktopに登録する
-
-```powershell
-uv run --no-project python scripts/configure-mcp.py --install
-```
-
-既存の他のMCPや設定は維持します。変更前の設定は同じフォルダーへ`.bak`として保存します。別のkicho-bot設定が登録済みの場合は停止するため、設定を変更する場合だけ`--replace`を付けて再実行してください。
-
-Claude Desktopを完全に終了して再起動し、接続ツールに`kicho-bot`が表示されることを確認します。[MCP公式のClaude Desktop接続ガイド](https://modelcontextprotocol.io/docs/develop/connect-local-servers)も参照できます。
+プログラムを実行できないチャット環境では、上の3手順で`setup.cmd`を開いてください。詳しい設定やmacOSでの登録は[手動セットアップ](docs/manual-setup.md)を参照できます。
 
 ## 普段の使い方
 
@@ -176,14 +112,7 @@ kicho-botで、顧客client-aの保存済み仕訳案を一覧にしてくださ
 
 ### 1. 対応表を用意する
 
-[freee対応表のひな型](kicho-bot/assets/freee-mapping.example.json)をコピーし、顧客ごとの設定を作ります。初期保存先を使っている場合のPowerShell例:
-
-```powershell
-if (-not (Test-Path work/mcp/freee-mapping.json)) { Copy-Item kicho-bot/assets/freee-mapping.example.json work/mcp/freee-mapping.json }
-notepad work/mcp/freee-mapping.json
-```
-
-既存の対応表がある場合は、そのファイルを編集してください。対象事業所のfreee設定と照合する項目は次のとおりです。
+[freee対応表のひな型](kicho-bot/assets/freee-mapping.example.json)をコピーし、顧客ごとのJSONファイルとして保存・編集します。既存の対応表がある場合は、そのファイルを使ってください。対象事業所のfreee設定と照合する項目は次のとおりです。
 
 | 設定 | 内容 |
 |---|---|
@@ -228,35 +157,29 @@ notepad work/mcp/freee-mapping.json
 
 ### データの保存場所
 
-初期値はリポジトリ内の`work/mcp/`です。
+自動セットアップの初期保存先は`%LOCALAPPDATA%\kicho-bot\data`です。エクスプローラーのアドレス欄へ貼り付けると開けます。
 
 ```text
-work/mcp/
-├── drafts/       # 仕訳案JSON
-└── queues/       # 顧客ごとの確定状態・CSV出力履歴
+%LOCALAPPDATA%\kicho-bot\
+├── .env                 # API設定
+├── data/                # 仕訳案・確認キュー
+│   ├── drafts/
+│   └── queues/
+├── versions/            # アプリ本体
+└── setup-status.json    # セットアップ結果と実際の保存先
 ```
 
-このフォルダーを顧客情報として保管・バックアップしてください。`work/`はGitの対象外です。
+以前に手動で登録した保存先がある場合は、その場所を引き継ぎます。実際の保存先はセットアップ完了時にも表示します。仕訳案と確認キューは顧客情報として保管・バックアップしてください。
 
-別の保存先を使う場合は登録時に指定します。
-
-```powershell
-uv run --no-project python scripts/configure-mcp.py --install --workspace "C:\Users\your-name\Documents\kicho-data"
-```
-
-登録済みの設定を変更する場合は`--replace`も追加します。既存データは自動移動しません。引き継ぐ場合は、Claude Desktopを終了してから新しい保存先へデータを移してください。
+本体はセットアップ時にPC内へコピーされるため、ダウンロード・展開したフォルダーはセットアップ後に移動しても構いません。
 
 ### 更新する
 
-Gitで取得した場合は、リポジトリ直下で更新してClaude Desktopを再起動します。
+新しいZIPをダウンロードして展開し、`setup.cmd`をもう一度実行します。API設定とデータ保存先を引き継いで本体を更新します。完了後にClaude Desktopを再起動してください。
 
-```powershell
-git pull --ff-only
-```
+キーを変更する場合は`%LOCALAPPDATA%\kicho-bot\.env`を編集してDesktopを再起動します。以前のリポジトリの`.env`を編集しても、自動セットアップ後の設定には反映されません。
 
-ZIPで取得した場合は、新しいZIPを別フォルダーへ展開し、`.env`と保存データを引き継いでから、登録スクリプトを`--install --replace`付きで再実行します。以前のフォルダーは動作確認後に整理してください。
-
-リポジトリや`.env`を移動した場合も登録し直してください。キーを変更した場合はClaude Desktopを再起動します。
+保存先の指定や手動インストールの更新方法は[セットアップの詳細](SETUP.md)を参照してください。
 
 ### 登録を解除する
 
@@ -266,33 +189,22 @@ Claude Desktopの設定ファイルにある`mcpServers`から`kicho-bot`エン�
 
 | 状況 | 対処 |
 |---|---|
-| ツールが表示されない | Desktopを完全終了して再起動。先に`--check`で依存の取得と起動確認を済ませる |
-| `uv`が見つからない | 登録コマンドに`--uv "C:\path\to\uv.exe"`を付ける |
-| Windowsで接続できない | Windows側のuv・リポジトリ・`.env`を使う。WSLのパスをそのまま登録しない |
-| キーが未設定と言われる | `.env`の接続先とキー名を確認し、Desktopを再起動 |
-| 401 / 403 | キーの有効性と接続先の利用権限を確認 |
+| セットアップが途中で止まった | ネットワークを確認して`setup.cmd`を再実行。既存のキー・データは引き継ぎます |
+| `setup.cmd`が見つからない | ZIPを展開し、`README.md`と同じフォルダーを確認 |
+| ツールが表示されない | Claude Desktopを完全終了して再起動し、`kicho-bot`の接続を確認 |
+| キーが未設定・無効と言われる | 保存先の`.env`で接続先とキーを確認してDesktopを再起動。キーの有効性・残高はセットアップでは確認しません |
 | 429 / 503 | 利用上限やサービス状況を確認し、失敗した件だけ時間を置いて再実行 |
-| 仕訳案が見つからない | 顧客IDと登録時の保存先を確認 |
+| 仕訳案が見つからない | 顧客IDと`setup-status.json`にある保存先を確認 |
 | 確認URLが開かない | MCPを再接続し、新しい確認画面のURLを依頼 |
 | 確定ボタンが押せない | 要確認理由、対応表、同期・決済状態を確認し、必要なら再判定 |
 
 ## その他の環境・詳しい設定
 
-macOSではuvを用意し、リポジトリ直下で同じ起動確認・登録コマンドを実行できます。Nix / Home Managerを使っている場合は既存の宣言でuvを管理してください。
+自動セットアップはWindows向けです。macOSや既存環境へ手動で登録する場合は[手動セットアップ](docs/manual-setup.md)を参照してください。
 
-設定ファイルの場所:
+現在のMCPはローカルstdio方式です。Web版から接続する公開HTTPサーバーは含みません。
 
-- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
-- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-
-`--install`なしで実行すると、自分の環境の絶対パスを入れた設定JSONだけを表示します。キーの値は含みません。
-
-```powershell
-uv run --no-project python scripts/configure-mcp.py
-```
-
-現在のMCPはローカルstdio方式です。Web版から接続する公開HTTPサーバーは含みません。別のstdio対応クライアントでは、表示された`command`と`args`を登録できます。
-
+- [自動セットアップの詳細・エージェント向け手順](SETUP.md)
 - [MCPツール一覧・他クライアントの設定](docs/mcp-reference.md)
 - [Codex / Claude Codeスキル・手動コマンド](docs/skills-and-cli.md)
 - [入力JSONの仕様](kicho-bot/references/extract-schema.md)
@@ -300,7 +212,7 @@ uv run --no-project python scripts/configure-mcp.py
 
 ## 検証と開発
 
-WindowsネイティブとWSLで、MCP通信を含む31件の自動テストが成功しています。分類・保存・再取得、確認画面での確定とCSV出力、顧客混在の拒否、APIキーの非表示、登録時の既存設定保護などを確認しています。
+WindowsネイティブとWSLで、MCP通信を含む36件の自動テストが成功しています。分類・保存・再取得、確認画面での確定とCSV出力、顧客混在の拒否、APIキーの非表示、登録時の既存設定保護などを確認しています。
 
 **Claude Desktopの画面上で実際の添付証憑を読み、実務の仕訳を完成させる一連の操作は未検証です。**
 
@@ -310,7 +222,7 @@ WindowsネイティブとWSLで、MCP通信を含む31件の自動テストが�
 APIを呼ばない自動テストは、リポジトリ直下で実行できます。
 
 ```powershell
-uv run --with "pydantic>=2.12,<3" --with "mcp>=2.2,<3" python -m unittest discover -s tests -v
+uv run --with "pydantic>=2.12,<3" --with "mcp>=2.2,<3" --with "python-dotenv>=1.2,<2" python -m unittest discover -s tests -v
 ```
 
 MCPとスキルは同じPythonの分類・確認処理を使います。MCPの入口は`kicho-bot/scripts/mcp_server.py`、Claude Desktopの登録は`scripts/configure-mcp.py`です。
