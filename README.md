@@ -19,6 +19,8 @@ flowchart LR
 
 - [できること](#できること)
 - [初回設定（Windows）](#初回設定windows)
+- [初回設定（Mac）](#初回設定mac)
+- [Claudeにセットアップを頼む場合](#claudeにセットアップを頼む場合)
 - [普段の使い方](#普段の使い方)
 - [freeeを使う場合](#freeeを使う場合)
 - [保存場所と更新](#保存場所と更新)
@@ -35,7 +37,7 @@ flowchart LR
 
 分類と仕訳案JSONはfreeeなしで使えます。会計ソフト専用のCSV出力は現在freeeに対応し、弥生・マネーフォワードなどへの変換は未実装です。
 
-MCPサーバーは同じPCで動きます。WindowsネイティブとWSLで自動テストを実施しています。macOSにも登録できますが、動作は未検証です。
+MCPサーバーは同じPCで動きます。WindowsとmacOS向けの自動セットアップを用意しています。WindowsネイティブとWSLで自動テストを実施していますが、Mac実機での動作は未検証です。
 
 ## 初回設定（Windows）
 
@@ -53,18 +55,34 @@ uv・Pythonの準備、MCPの起動・接続確認、Claude Desktopへの登録�
 
 キーの発行・利用設定は[Vercelの案内](https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe)または[TypeSafeの案内](https://docs.typesafe.ai/api)を参照してください。**APIキーをClaudeのチャットに貼る必要はありません。**
 
-### Claudeにセットアップを頼む場合
+## 初回設定（Mac）
+
+**ZIPを展開して`setup.command`を開くと、Windows版と同じ流れで設定できます。** Apple Silicon・Intelの両方に対応する起動処理を用意しています。
+
+先にMac版Claude Desktopと、Vercel AI GatewayまたはTypeSafe/JevのAPIキーを用意してください。キーの発行は[Vercelの案内](https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe)または[TypeSafeの案内](https://docs.typesafe.ai/api)を参照できます。
+
+1. [ZIPをダウンロード](https://github.com/Lehtien/kicho-bot/archive/refs/heads/main.zip)して展開します。
+2. 展開したフォルダーの**`setup.command`をダブルクリック**します。開いたターミナルで接続先を選び、APIキーを入力します。キーの入力内容は表示されません。
+3. 「セットアップが完了しました」と表示されたら、Claude Desktopを`⌘Q`で終了して再起動します。
+
+ダブルクリックで開けない場合は「ターミナル」を開き、`bash `（末尾に半角スペース）と入力して、Finderから`setup.command`をドラッグし、Enterキーを押してください。パスに空白がある場合も、ドラッグすれば適切に入力されます。
+
+既存のuvを利用し、なければ[公式配布のuv](https://docs.astral.sh/uv/getting-started/installation/#github-releases)をアプリ専用フォルダーへ取得します。Pythonの準備、MCP接続確認、Desktopへの登録も自動で行います。Homebrew・管理者権限・Gitは不要です。既存のAPI設定・保存先・他のMCP設定は引き継ぎます。セットアップ中にJevへの送信や課金は行いません。
+
+**Mac実機でのセットアップとDesktop画面の操作は未検証です。** 起動処理の分岐、ダウンロード検証、設定を引き継ぐ共通処理は自動テストで確認しています。
+
+## Claudeにセットアップを頼む場合
 
 PCのファイル操作・プログラム実行ができるClaude環境なら、次の依頼文を使えます。
 
 ```text
-https://github.com/Lehtien/kicho-bot をWindowsのClaude Desktop向けにセットアップしてください。
-リポジトリのSETUP.mdに従って、setup.cmdを私が入力できるウィンドウで起動してください。
+https://github.com/Lehtien/kicho-bot をこのPCのClaude Desktop向けにセットアップしてください。
+リポジトリのSETUP.mdに従って、OSに合うセットアップを私が入力できるウィンドウで起動してください。
 APIキーは私がそのウィンドウへ入力します。チャットでキーを聞いたり表示したりしないでください。
 既存の設定と保存データを引き継ぎ、最後にセットアップ結果を確認してください。
 ```
 
-プログラムを実行できないチャット環境では、上の3手順で`setup.cmd`を開いてください。詳しい設定やmacOSでの登録は[手動セットアップ](docs/manual-setup.md)を参照できます。
+プログラムを実行できないチャット環境では、上の手順でWindowsは`setup.cmd`、Macは`setup.command`を開いてください。既存のuvで直接登録する方法は[手動セットアップ](docs/manual-setup.md)を参照できます。
 
 ## 普段の使い方
 
@@ -157,10 +175,17 @@ kicho-botで、顧客client-aの保存済み仕訳案を一覧にしてくださ
 
 ### データの保存場所
 
-自動セットアップの初期保存先は`%LOCALAPPDATA%\kicho-bot\data`です。エクスプローラーのアドレス欄へ貼り付けると開けます。
+自動セットアップの初期保存先は次のとおりです。Windowsはエクスプローラーのアドレス欄、MacはFinderの「移動 → フォルダへ移動」へ貼り付けると開けます。
+
+| OS | 本体・API設定の保存先 | 仕訳案・確認キュー |
+|---|---|---|
+| Windows | `%LOCALAPPDATA%\kicho-bot` | その中の`data` |
+| Mac | `~/Library/Application Support/kicho-bot` | その中の`data` |
+
+どちらもフォルダー内の構成は共通です。
 
 ```text
-%LOCALAPPDATA%\kicho-bot\
+kicho-bot/
 ├── .env                 # API設定
 ├── data/                # 仕訳案・確認キュー
 │   ├── drafts/
@@ -175,9 +200,9 @@ kicho-botで、顧客client-aの保存済み仕訳案を一覧にしてくださ
 
 ### 更新する
 
-新しいZIPをダウンロードして展開し、`setup.cmd`をもう一度実行します。API設定とデータ保存先を引き継いで本体を更新します。完了後にClaude Desktopを再起動してください。
+新しいZIPをダウンロードして展開し、Windowsは`setup.cmd`、Macは`setup.command`をもう一度実行します。API設定とデータ保存先を引き継いで本体を更新します。完了後にClaude Desktopを再起動してください。
 
-キーを変更する場合は`%LOCALAPPDATA%\kicho-bot\.env`を編集してDesktopを再起動します。以前のリポジトリの`.env`を編集しても、自動セットアップ後の設定には反映されません。
+キーを変更する場合は、上の本体保存先にある`.env`を編集してDesktopを再起動します。MacのFinderで隠しファイルを表示するには`⌘⇧.`を押します。以前のリポジトリの`.env`を編集しても、自動セットアップ後の設定には反映されません。
 
 保存先の指定や手動インストールの更新方法は[セットアップの詳細](SETUP.md)を参照してください。
 
@@ -189,8 +214,9 @@ Claude Desktopの設定ファイルにある`mcpServers`から`kicho-bot`エン�
 
 | 状況 | 対処 |
 |---|---|
-| セットアップが途中で止まった | ネットワークを確認して`setup.cmd`を再実行。既存のキー・データは引き継ぎます |
-| `setup.cmd`が見つからない | ZIPを展開し、`README.md`と同じフォルダーを確認 |
+| セットアップが途中で止まった | ネットワークを確認してWindowsは`setup.cmd`、Macは`setup.command`を再実行。既存のキー・データは引き継ぎます |
+| セットアップファイルが見つからない | ZIPを展開し、`README.md`と同じフォルダーを確認 |
+| Macで`setup.command`を開けない | [Macの初回設定](#初回設定mac)にあるターミナルからの実行手順を使用 |
 | ツールが表示されない | Claude Desktopを完全終了して再起動し、`kicho-bot`の接続を確認 |
 | キーが未設定・無効と言われる | 保存先の`.env`で接続先とキーを確認してDesktopを再起動。キーの有効性・残高はセットアップでは確認しません |
 | 429 / 503 | 利用上限やサービス状況を確認し、失敗した件だけ時間を置いて再実行 |
@@ -200,7 +226,7 @@ Claude Desktopの設定ファイルにある`mcpServers`から`kicho-bot`エン�
 
 ## その他の環境・詳しい設定
 
-自動セットアップはWindows向けです。macOSや既存環境へ手動で登録する場合は[手動セットアップ](docs/manual-setup.md)を参照してください。
+Windows・Macともに自動セットアップを使えます。既存環境へ手動で登録する場合は[手動セットアップ](docs/manual-setup.md)を参照してください。
 
 現在のMCPはローカルstdio方式です。Web版から接続する公開HTTPサーバーは含みません。
 
@@ -213,6 +239,8 @@ Claude Desktopの設定ファイルにある`mcpServers`から`kicho-bot`エン�
 ## 検証と開発
 
 WindowsネイティブとWSLで、MCP通信を含む36件の自動テストが成功しています。分類・保存・再取得、確認画面での確定とCSV出力、顧客混在の拒否、APIキーの非表示、登録時の既存設定保護などを確認しています。
+
+Mac用の起動処理には、CPU別の取得先、チェックサム不一致での停止、空白を含むパス、再実行を確認する4件のテストを追加しています。これらはWSLで実行するテストで、Mac実機での検証を代替するものではありません。
 
 **Claude Desktopの画面上で実際の添付証憑を読み、実務の仕訳を完成させる一連の操作は未検証です。**
 

@@ -1,6 +1,6 @@
 # 手動でClaude Desktopに登録する
 
-通常は[READMEの自動セットアップ](../README.md#初回設定windows)を使ってください。このページは既存のuv・作業フォルダーを指定して手動で登録する場合の手順です。
+通常はREADMEの自動セットアップ（[Windows](../README.md#初回設定windows) / [Mac](../README.md#初回設定mac)）を使ってください。このページは既存のuv・作業フォルダーを指定して手動で登録する場合の手順です。
 
 ## 初回設定（Windows）
 

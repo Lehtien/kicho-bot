@@ -115,7 +115,7 @@ def ensure_credentials(target: Path, candidates: list[Path], non_interactive: bo
         print("保存済みのAPI設定を使用します。キーは表示しません。", flush=True)
         return
     if non_interactive:
-        raise SetupError("APIキーの入力が必要です。setup.cmdを自分で開いて入力してください。")
+        raise SetupError("APIキーの入力が必要です。Windowsではsetup.cmd、Macではsetup.commandを自分で開いて入力してください。")
     print("接続先を選んでください: 1 = Vercel AI Gateway / 2 = Jev公式", flush=True)
     answer = input("番号 [1]: ").strip() or "1"
     if answer not in ("1", "2"):
@@ -124,7 +124,7 @@ def ensure_credentials(target: Path, candidates: list[Path], non_interactive: bo
     key_name = "AI_GATEWAY_API_KEY" if provider == "vercel" else "TYPESAFE_API_KEY"
     # Refuse non-console input instead of getpass falling back to visible input.
     if not sys.stdin.isatty():
-        raise SetupError("キーはチャットへ渡さず、setup.cmdで開いたウィンドウに入力してください。")
+        raise SetupError("キーはチャットへ渡さず、セットアップを開いたターミナルへ入力してください。")
     key = getpass.getpass("APIキー（入力内容は表示されません）: ").strip()
     if not key or any(character in key for character in ("\n", "\r", "\x00")):
         raise SetupError("APIキーが空欄か、改行を含んでいます。もう一度入力してください。")
